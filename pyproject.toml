@@ -1,0 +1,23 @@
+[project]
+name = "how-many"
+version = "0.1.0"
+description = "Count how many things are on a screen."
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.5",
+    "numpy>=1.25",
+    "opencv-python>=4.9",
+]
+
+[dependency-groups]
+dev = ["pyinstaller>=6.14"]
+
+[project.scripts]
+build-exe = "how_many_build:main"
+
+[tool.uv]
+default-groups = ["dev"]
+package = true
+
+[tool.setuptools]
+py-modules = ["how_many_build"]
