@@ -1,3 +1,14 @@
+"""Regression harness for the SciPy-derived peak helpers.
+
+The tests in this module execute SciPy 1.15.3's official signal test
+suite against both the upstream implementation and the pure-Python copy
+vendored in :mod:`how_many.analysis.peaks_detrend`.  The SciPy test files
+carry ``Copyright (c) 2001-2024 SciPy Developers`` notices and remain
+subject to the SciPy BSD 3-Clause licence; they are used here purely to
+confirm that the bundled translations stay faithful to the reference
+behaviour.
+"""
+
 import importlib.resources as resources
 import shutil
 import sys

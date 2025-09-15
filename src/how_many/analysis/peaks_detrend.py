@@ -1,3 +1,14 @@
+"""Standalone SciPy signal helpers used by how_many.
+
+This module vendors the pure-Python translations of
+``scipy.signal.find_peaks`` and ``scipy.signal.detrend`` from SciPy
+version 1.15.3.  The original implementations are
+``Copyright (c) 2001-2024 SciPy Developers`` and made available under the
+SciPy BSD 3-Clause licence.  These copies remain covered by that licence
+and are regression-tested against the matching SciPy release to confirm
+behavioural parity within the how_many project.
+"""
+
 import math
 import warnings
 import numpy as np
