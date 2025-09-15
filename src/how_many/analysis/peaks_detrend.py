@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 from typing import Literal
 
-# Verified vs v1.15.3
+SCIPY_REFERENCE_VERSION = "1.15.3"
 
 
 class PeakPropertyWarning(RuntimeWarning):

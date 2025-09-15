@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.11"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install $UV_PYTHON
+
+      - name: Sync dependencies
+        run: uv sync --group build --group test
+
+      - name: Run tests
+        run: uv run pytest
+
+  build:
+    needs: tests
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: how-many-windows
+            binary: dist/how_many.exe
+          - os: macos-latest
+            artifact: how-many-macos
+            binary: dist/how_many
+          - os: ubuntu-latest
+            artifact: how-many-linux
+            binary: dist/how_many
+    runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON: "3.11"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install $UV_PYTHON
+
+      - name: Sync dependencies
+        run: uv sync --group build
+
+      - name: Build executable with PyInstaller
+        run: uv run python scripts/build_exe.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error

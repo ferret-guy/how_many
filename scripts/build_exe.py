@@ -1,18 +1,23 @@
+"""Utility script for building the how_many executable via PyInstaller."""
+
+from __future__ import annotations
+
 import subprocess
 import sys
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
 class BuildConfig:
     name: str = "how_many"
-    entry: str = "how_many.py"
+    entry: Path = Path("src/how_many/app.py")
 
 
 def main() -> None:
     cfg = BuildConfig()
-    root = Path(__file__).parent
+    root = Path(__file__).resolve().parent.parent
+    script_path = root / cfg.entry
     cmd: list[str] = [
         "pyinstaller",
         "--noconsole",
@@ -20,7 +25,7 @@ def main() -> None:
         "--name",
         cfg.name,
         "--clean",
-        str((root / cfg.entry).as_posix()),
+        str(script_path),
     ]
     sys.exit(subprocess.call(cmd))
 
