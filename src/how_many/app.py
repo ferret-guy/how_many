@@ -12,10 +12,20 @@ import cv2  # opencv-python
 import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from .analysis import estimate_counts_from_profile
-from .models import AppConfig, Suggestion, UIState
-from .utils import clamp, rotate_point
-from .utils.qt import qpixmap_to_bgr
+if __package__ in (None, ""):
+    PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+    if str(PACKAGE_ROOT) not in sys.path:
+        sys.path.insert(0, str(PACKAGE_ROOT))
+
+    from how_many.analysis import estimate_counts_from_profile
+    from how_many.models import AppConfig, Suggestion, UIState
+    from how_many.utils import clamp, rotate_point
+    from how_many.utils.qt import qpixmap_to_bgr
+else:
+    from .analysis import estimate_counts_from_profile
+    from .models import AppConfig, Suggestion, UIState
+    from .utils import clamp, rotate_point
+    from .utils.qt import qpixmap_to_bgr
 
 
 # ------------------------------ Overlay Widget --------------------------------
