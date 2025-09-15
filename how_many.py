@@ -34,11 +34,12 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 # ------------------------------ Data Models ----------------------------------
 
+
 @dataclass
 class AnalysisParams:
     stripe_width_px: int = 20
     blur_sigma_px: float = 0.0
-    auto_analyze: bool = False   # default OFF
+    auto_analyze: bool = False  # default OFF
     hide_during_capture_ms: int = 40
     suggest_max: int = 5
     min_length_px: int = 48
@@ -54,9 +55,9 @@ class UIState:
 
 @dataclass
 class Suggestion:
-    count: int            # items (endpoints included)
-    confidence: float     # 0..1
-    source: str           # "fft", "acf", "harmonic", etc.
+    count: int  # items (endpoints included)
+    confidence: float  # 0..1
+    source: str  # "fft", "acf", "harmonic", etc.
 
 
 @dataclass
@@ -92,6 +93,7 @@ class AppConfig:
 
 # ----------------------------- Helper Utilities -------------------------------
 
+
 def qpixmap_to_bgr(pix: QtGui.QPixmap) -> np.ndarray:
     """Convert a QPixmap to an OpenCV BGR numpy array (PySide6-safe)."""
     fmt = getattr(QtGui.QImage, "Format_RGBA8888", None)
@@ -104,13 +106,15 @@ def qpixmap_to_bgr(pix: QtGui.QPixmap) -> np.ndarray:
     buf = img.constBits()  # memoryview in PySide6
     arr = np.frombuffer(buf, np.uint8)
     arr = arr.reshape((height, bytes_per_line))  # include stride
-    arr = arr[:, : width * 4]                    # crop padding
+    arr = arr[:, : width * 4]  # crop padding
     arr = arr.reshape((height, width, 4))
     bgr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
     return bgr
 
 
-def rotate_point(x: float, y: float, cx: float, cy: float, angle_deg: float) -> Tuple[float, float]:
+def rotate_point(
+    x: float, y: float, cx: float, cy: float, angle_deg: float
+) -> Tuple[float, float]:
     theta = math.radians(angle_deg)
     cos_t = math.cos(theta)
     sin_t = math.sin(theta)
@@ -127,13 +131,24 @@ def clamp(v: float, lo: float, hi: float) -> float:
 
 # ------------------------------ Core Analysis ---------------------------------
 
-def _rank_and_cap(suggestions: Dict[int, Suggestion], profile_len: int, max_candidates: int) -> List[Suggestion]:
-    ranked = sorted(suggestions.values(), key=lambda s: (s.confidence, s.source.startswith("fft")), reverse=True)
-    filtered: List[Suggestion] = [s for s in ranked if 1 <= s.count <= max(1, profile_len)]  # items can be up to length
-    return filtered[:max(1, int(max_candidates))]
+
+def _rank_and_cap(
+    suggestions: Dict[int, Suggestion], profile_len: int, max_candidates: int
+) -> List[Suggestion]:
+    ranked = sorted(
+        suggestions.values(),
+        key=lambda s: (s.confidence, s.source.startswith("fft")),
+        reverse=True,
+    )
+    filtered: List[Suggestion] = [
+        s for s in ranked if 1 <= s.count <= max(1, profile_len)
+    ]  # items can be up to length
+    return filtered[: max(1, int(max_candidates))]
 
 
-def estimate_counts_from_profile(profile: np.ndarray, max_candidates: int = 5) -> List[Suggestion]:
+def estimate_counts_from_profile(
+    profile: np.ndarray, max_candidates: int = 5
+) -> List[Suggestion]:
     """
     Estimate number of ITEMS along the line (including endpoints) using FFT & autocorrelation.
     Internally, spectral/ACF give an estimate of CYCLES (intervals). We convert via: items = cycles + 1.
@@ -159,7 +174,9 @@ def estimate_counts_from_profile(profile: np.ndarray, max_candidates: int = 5) -
         items = int(max(1, cycles + 1))
         prev = suggestions.get(items)
         if (prev is None) or (conf > prev.confidence):
-            suggestions[items] = Suggestion(count=items, confidence=float(clamp(conf, 0.0, 1.0)), source=source)
+            suggestions[items] = Suggestion(
+                count=items, confidence=float(clamp(conf, 0.0, 1.0)), source=source
+            )
 
     # ---------------- FFT ----------------
     fft_mag = np.abs(np.fft.rfft(p_win))
@@ -180,7 +197,9 @@ def estimate_counts_from_profile(profile: np.ndarray, max_candidates: int = 5) -
                 add_items(cycles, conf, "fft-peak")
 
             # Consider harmonics
-            top_idxs = sorted(peaks.tolist(), key=lambda i: float(spectral[i]), reverse=True)[:3]
+            top_idxs = sorted(
+                peaks.tolist(), key=lambda i: float(spectral[i]), reverse=True
+            )[:3]
             for i in top_idxs:
                 base = int(i)
                 base_conf = float(spectral[i] / spec_max)
@@ -193,7 +212,7 @@ def estimate_counts_from_profile(profile: np.ndarray, max_candidates: int = 5) -
     # ---------------- ACF ----------------
     p0 = p - float(np.mean(p))
     acf_full = np.correlate(p0, p0, mode="full")
-    acf = acf_full[N - 1:]  # lags 0..N-1
+    acf = acf_full[N - 1 :]  # lags 0..N-1
     if acf[0] != 0:
         acf = acf / float(acf[0])
     acf[:2] = 0.0  # ignore lag 0/1
@@ -204,7 +223,9 @@ def estimate_counts_from_profile(profile: np.ndarray, max_candidates: int = 5) -
             acf_max = float(np.max(acf))
             for lag in acf_peaks[:5]:
                 if lag > 0:
-                    cycles = int(round((N - 1) / float(lag)))  # use N-1 (interval length) for cycles
+                    cycles = int(
+                        round((N - 1) / float(lag))
+                    )  # use N-1 (interval length) for cycles
                     conf = float(acf[lag] / acf_max)
                     add_items(cycles, conf, "acf-peak")
 
@@ -213,19 +234,28 @@ def estimate_counts_from_profile(profile: np.ndarray, max_candidates: int = 5) -
 
 # ------------------------------ Overlay Widget --------------------------------
 
+
 class OverlayWidget(QtWidgets.QWidget):
     lineChanged = QtCore.Signal()
     requestAnalyze = QtCore.Signal()
 
     def __init__(self, virtual_rect: QtCore.QRect, cfg: AppConfig) -> None:
-        super().__init__(None, QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Tool)
+        super().__init__(
+            None, QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Tool
+        )
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top)
+        self.setWindowFlag(
+            QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top
+        )
         self.setGeometry(virtual_rect)
         self.setMouseTracking(True)
 
-        self._p1 = QtCore.QPointF(virtual_rect.center().x() - 200, virtual_rect.center().y())
-        self._p2 = QtCore.QPointF(virtual_rect.center().x() + 200, virtual_rect.center().y())
+        self._p1 = QtCore.QPointF(
+            virtual_rect.center().x() - 200, virtual_rect.center().y()
+        )
+        self._p2 = QtCore.QPointF(
+            virtual_rect.center().x() + 200, virtual_rect.center().y()
+        )
         self._drag_target: Optional[str] = None  # "p1" | "p2" | "line" | None
         self._drag_offset = QtCore.QPointF(0, 0)
 
@@ -295,7 +325,9 @@ class OverlayWidget(QtWidgets.QWidget):
         mods = QtWidgets.QApplication.keyboardModifiers()
         return bool(mods & QtCore.Qt.KeyboardModifier.ControlModifier)
 
-    def _snap_endpoint(self, target: QtCore.QPointF, anchor: QtCore.QPointF) -> QtCore.QPointF:
+    def _snap_endpoint(
+        self, target: QtCore.QPointF, anchor: QtCore.QPointF
+    ) -> QtCore.QPointF:
         """If Ctrl is held, snap the angle anchor->target to multiples of 45°; preserve length."""
         if not self._ctrl_down():
             return target
@@ -311,8 +343,12 @@ class OverlayWidget(QtWidgets.QWidget):
         ny = math.sin(snapped)
         newx = float(anchor.x()) + nx * L
         newy = float(anchor.y()) + ny * L
-        newx = clamp(newx, float(self.rect().left()+2), float(self.rect().right()-2))
-        newy = clamp(newy, float(self.rect().top()+2), float(self.rect().bottom()-2))
+        newx = clamp(
+            newx, float(self.rect().left() + 2), float(self.rect().right() - 2)
+        )
+        newy = clamp(
+            newy, float(self.rect().top() + 2), float(self.rect().bottom() - 2)
+        )
         return QtCore.QPointF(newx, newy)
 
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
@@ -461,9 +497,13 @@ class OverlayWidget(QtWidgets.QWidget):
 
         hud_w = 340.0
         hud_h = 24.0
-        hud_rect = QtCore.QRectF(hud_cx - hud_w/2.0, hud_cy - hud_h/2.0, hud_w, hud_h)
+        hud_rect = QtCore.QRectF(
+            hud_cx - hud_w / 2.0, hud_cy - hud_h / 2.0, hud_w, hud_h
+        )
 
-        hud = f"W={int(self._stripe_width)} px  |  L={int(L)} px  |  N={self._tick_count}"
+        hud = (
+            f"W={int(self._stripe_width)} px  |  L={int(L)} px  |  N={self._tick_count}"
+        )
         painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 180)))
         painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 255, 200)))
         painter.drawRoundedRect(hud_rect, 6, 6)
@@ -473,8 +513,8 @@ class OverlayWidget(QtWidgets.QWidget):
     # --------------------------- Geometry helpers ------------------------------
 
     def _clamp_point(self, p: QtCore.QPointF) -> QtCore.QPointF:
-        x = clamp(p.x(), float(self.rect().left()+2), float(self.rect().right()-2))
-        y = clamp(p.y(), float(self.rect().top()+2), float(self.rect().bottom()-2))
+        x = clamp(p.x(), float(self.rect().left() + 2), float(self.rect().right() - 2))
+        y = clamp(p.y(), float(self.rect().top() + 2), float(self.rect().bottom() - 2))
         return QtCore.QPointF(x, y)
 
     @staticmethod
@@ -501,15 +541,19 @@ class OverlayWidget(QtWidgets.QWidget):
 
 # ------------------------------- Profile Plot ---------------------------------
 
+
 class ProfilePlot(QtWidgets.QWidget):
     """Simple QWidget that draws the latest 1-D stripe profile and markers (endpoints included)."""
+
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self._profile = np.empty((0,), dtype=np.float64)
         self._markers = 0
         self.setMinimumHeight(180)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
-                           QtWidgets.QSizePolicy.Policy.Expanding)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
 
     def set_profile(self, profile: Optional[np.ndarray]) -> None:
         if profile is None or getattr(profile, "size", 0) == 0:
@@ -534,8 +578,11 @@ class ProfilePlot(QtWidgets.QWidget):
 
         if self._profile.size == 0:
             painter.setPen(QtGui.QPen(QtGui.QColor(120, 120, 120)))
-            painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter,
-                             "No profile yet.\nPress ‘Analyze Now’ to capture stripe profile.")
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignmentFlag.AlignCenter,
+                "No profile yet.\nPress ‘Analyze Now’ to capture stripe profile.",
+            )
             return
 
         # Normalize profile to [0,1] for plotting
@@ -558,10 +605,12 @@ class ProfilePlot(QtWidgets.QWidget):
 
         # Draw waveform
         path = QtGui.QPainterPath()
+
         def x_at(i: int) -> float:
             if N <= 1:
                 return left
             return left + (w - 1.0) * (i / float(N - 1))
+
         def y_at(v: float) -> float:
             return bottom - v * (h - 1.0)
 
@@ -588,11 +637,15 @@ class ProfilePlot(QtWidgets.QWidget):
         # Axes labels (minimal)
         painter.setPen(QtGui.QPen(QtGui.QColor(80, 80, 80)))
         text = f"Length: {N} px   min={p_min:.1f}  max={p_max:.1f}"
-        painter.drawText(self.rect().adjusted(12, 12, -12, -12),
-                         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft, text)
+        painter.drawText(
+            self.rect().adjusted(12, 12, -12, -12),
+            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
+            text,
+        )
 
 
 # ---------------------------- Control Dialog UI -------------------------------
+
 
 class ControlDialog(QtWidgets.QDialog):
     analyzeRequested = QtCore.Signal()
@@ -607,7 +660,9 @@ class ControlDialog(QtWidgets.QDialog):
     def __init__(self, cfg: AppConfig) -> None:
         super().__init__(None)
         self.setWindowTitle("how_many — Stripe Periodicity Estimator")
-        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top)
+        self.setWindowFlag(
+            QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top
+        )
         self.setMinimumWidth(560)
 
         # Widgets
@@ -646,7 +701,9 @@ class ControlDialog(QtWidgets.QDialog):
         self.topmost_check.setChecked(cfg.ui.always_on_top)
         self.topmost_check.toggled.connect(self.alwaysOnTopToggled)
 
-        self.status_label = QtWidgets.QLabel("Move the two dots to span the feature row, then Analyze.")
+        self.status_label = QtWidgets.QLabel(
+            "Move the two dots to span the feature row, then Analyze."
+        )
         self.status_label.setWordWrap(True)
 
         # Tabs
@@ -655,7 +712,9 @@ class ControlDialog(QtWidgets.QDialog):
         # --- Controls tab
         controls_page = QtWidgets.QWidget(self)
         controls_form = QtWidgets.QFormLayout(controls_page)
-        controls_form.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        controls_form.setFieldGrowthPolicy(
+            QtWidgets.QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
         controls_form.addRow("Estimated numbers:", self.suggest_combo)
         controls_form.addRow("Manual number of items:", self.manual_spin)
         controls_form.addRow(self.analyze_btn)  # spans both columns
@@ -663,7 +722,9 @@ class ControlDialog(QtWidgets.QDialog):
         controls_form.addRow("Stripe width (px):", self.width_spin)
         controls_form.addRow("Line thickness:", self.thick_spin)
         controls_form.addRow("Tick length (px):", self.ticklen_spin)
-        controls_form.addRow("Always on top:", self.topmost_check)  # aligned checkbox row
+        controls_form.addRow(
+            "Always on top:", self.topmost_check
+        )  # aligned checkbox row
         controls_v = QtWidgets.QVBoxLayout()
         controls_v.addLayout(controls_form)
         controls_v.addWidget(self.status_label)
@@ -676,7 +737,9 @@ class ControlDialog(QtWidgets.QDialog):
         self.results_label = QtWidgets.QTextEdit(profile_page)
         self.results_label.setReadOnly(True)
         self.results_label.setMinimumHeight(80)
-        self.results_label.setPlaceholderText("Results will appear here after analysis.")
+        self.results_label.setPlaceholderText(
+            "Results will appear here after analysis."
+        )
         profile_v = QtWidgets.QVBoxLayout(profile_page)
         profile_v.addWidget(self.profile_plot, stretch=1)
         profile_v.addWidget(self.results_label, stretch=0)
@@ -729,8 +792,10 @@ class ControlDialog(QtWidgets.QDialog):
         self.suggest_combo.blockSignals(True)
         self.suggest_combo.clear()
         for s in suggestions:
-            self.suggest_combo.addItem(f"{s.count} items  ∘  confidence {s.confidence:.2f}  [{s.source}]",
-                                       userData=s.count)
+            self.suggest_combo.addItem(
+                f"{s.count} items  ∘  confidence {s.confidence:.2f}  [{s.source}]",
+                userData=s.count,
+            )
         self.suggest_combo.blockSignals(False)
         if self.suggest_combo.count() > 0:
             self.suggest_combo.setCurrentIndex(0)
@@ -760,6 +825,7 @@ class ControlDialog(QtWidgets.QDialog):
 
 # ---------------------------- Main Controller ---------------------------------
 
+
 class MainController(QtCore.QObject):
     def __init__(self, app: QtWidgets.QApplication) -> None:
         super().__init__(None)
@@ -777,7 +843,11 @@ class MainController(QtCore.QObject):
         self.ctrl.analyzeRequested.connect(self.analyze)
         self.ctrl.manualCountChanged.connect(self.overlay.set_tick_count)
         self.ctrl.manualCountChanged.connect(lambda n: self.ctrl.set_markers(int(n)))
-        self.ctrl.stripeWidthChanged.connect(lambda v: self.overlay.set_stripe_width(v, auto_analyze=self.cfg.params.auto_analyze))
+        self.ctrl.stripeWidthChanged.connect(
+            lambda v: self.overlay.set_stripe_width(
+                v, auto_analyze=self.cfg.params.auto_analyze
+            )
+        )
         self.ctrl.lineThicknessChanged.connect(self.overlay.set_line_thickness)
         self.ctrl.tickLengthChanged.connect(self.overlay.set_tick_length)
         self.ctrl.autoAnalyzeToggled.connect(self._on_auto_toggle)
@@ -856,7 +926,9 @@ class MainController(QtCore.QObject):
         """Capture stripe under the overlay line, estimate counts, update UI."""
         L = self.overlay.line_length()
         if L < self.cfg.params.min_length_px:
-            self.ctrl.set_status(f"Line too short for analysis (< {self.cfg.params.min_length_px} px).")
+            self.ctrl.set_status(
+                f"Line too short for analysis (< {self.cfg.params.min_length_px} px)."
+            )
             return
 
         bbox_virtual = self.overlay.stripe_bbox_virtual(margin=8)
@@ -895,7 +967,7 @@ class MainController(QtCore.QObject):
             self.ctrl.set_status("Stripe region is out of bounds.")
             return
 
-        roi = full_bgr[int(y0):int(y0 + h), int(x0):int(x0 + w), :]
+        roi = full_bgr[int(y0) : int(y0 + h), int(x0) : int(x0 + w), :]
 
         # Map p1/p2 to ROI-local coords
         p1_v = self.overlay.p1
@@ -903,7 +975,9 @@ class MainController(QtCore.QObject):
         p1_local = (p1_v.x() - virt_rect.left() - x0, p1_v.y() - virt_rect.top() - y0)
         p2_local = (p2_v.x() - virt_rect.left() - x0, p2_v.y() - virt_rect.top() - y0)
 
-        stripe = self._extract_aligned_stripe(roi, p1_local, p2_local, self.cfg.params.stripe_width_px)
+        stripe = self._extract_aligned_stripe(
+            roi, p1_local, p2_local, self.cfg.params.stripe_width_px
+        )
 
         if stripe is None:
             self.ctrl.set_status("Failed to extract stripe (out of bounds).")
@@ -917,9 +991,13 @@ class MainController(QtCore.QObject):
         # Average across width to get 1D profile
         profile = np.mean(gray, axis=0)
 
-        suggestions = estimate_counts_from_profile(profile, max_candidates=self.cfg.params.suggest_max)
+        suggestions = estimate_counts_from_profile(
+            profile, max_candidates=self.cfg.params.suggest_max
+        )
         if not suggestions:
-            self.ctrl.set_status("No strong periodicity found. Try adjusting stripe width or line position.")
+            self.ctrl.set_status(
+                "No strong periodicity found. Try adjusting stripe width or line position."
+            )
             # Still show profile so user can see signal
             self.ctrl.set_profile(profile)
             self.ctrl.set_results_text("No strong periodicity found.")
@@ -936,9 +1014,17 @@ class MainController(QtCore.QObject):
         best = suggestions[0]
         self.overlay.set_tick_count(int(best.count))
         self.ctrl.set_markers(int(best.count))
-        self.ctrl.set_status(f"Best estimate: {best.count} items (confidence {best.confidence:.2f}).")
+        self.ctrl.set_status(
+            f"Best estimate: {best.count} items (confidence {best.confidence:.2f})."
+        )
 
-    def _extract_aligned_stripe(self, roi_bgr: np.ndarray, p1: Tuple[float, float], p2: Tuple[float, float], stripe_w: int) -> Optional[np.ndarray]:
+    def _extract_aligned_stripe(
+        self,
+        roi_bgr: np.ndarray,
+        p1: Tuple[float, float],
+        p2: Tuple[float, float],
+        stripe_w: int,
+    ) -> Optional[np.ndarray]:
         """Return rotated stripe image (H=stripe_w, W=line_length_px)."""
         x1, y1 = float(p1[0]), float(p1[1])
         x2, y2 = float(p2[0]), float(p2[1])
@@ -954,7 +1040,9 @@ class MainController(QtCore.QObject):
 
         h, w = roi_bgr.shape[:2]
         M = cv2.getRotationMatrix2D((cx, cy), angle_deg, 1.0)
-        rotated = cv2.warpAffine(roi_bgr, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+        rotated = cv2.warpAffine(
+            roi_bgr, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT
+        )
 
         x1r, y1r = rotate_point(x1, y1, cx, cy, angle_deg)
         x2r, y2r = rotate_point(x2, y2, cx, cy, angle_deg)
@@ -982,6 +1070,7 @@ class MainController(QtCore.QObject):
 
 
 # ---------------------------------- Main --------------------------------------
+
 
 def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
