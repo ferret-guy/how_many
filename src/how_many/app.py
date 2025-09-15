@@ -19,12 +19,12 @@ if __package__ in (None, ""):
 
     from how_many.analysis import estimate_counts_from_profile
     from how_many.models import AppConfig, Suggestion, UIState
-    from how_many.utils import clamp, rotate_point
+    from how_many.utils import clamp
     from how_many.utils.qt import qpixmap_to_bgr
 else:
     from .analysis import estimate_counts_from_profile
     from .models import AppConfig, Suggestion, UIState
-    from .utils import clamp, rotate_point
+    from .utils import clamp
     from .utils.qt import qpixmap_to_bgr
 
 
@@ -821,7 +821,8 @@ class MainController(QtCore.QObject):
         p2: Tuple[float, float],
         stripe_w: int,
     ) -> Optional[np.ndarray]:
-        """Return rotated stripe image (H=stripe_w, W=line_length_px)."""
+        """Sample a stripe aligned with the overlay line regardless of its angle."""
+
         x1, y1 = float(p1[0]), float(p1[1])
         x2, y2 = float(p2[0]), float(p2[1])
         dx = x2 - x1
@@ -830,30 +831,43 @@ class MainController(QtCore.QObject):
         if L < 4.0:
             return None
 
-        cx = (x1 + x2) / 2.0
-        cy = (y1 + y2) / 2.0
-        angle_deg = -math.degrees(math.atan2(dy, dx))
+        width = max(4, int(math.ceil(L)))
+        height = max(2, int(max(1, stripe_w)))
 
-        h, w = roi_bgr.shape[:2]
-        M = cv2.getRotationMatrix2D((cx, cy), angle_deg, 1.0)
-        rotated = cv2.warpAffine(
-            roi_bgr, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT
+        ux = dx / L
+        uy = dy / L
+        nx = -uy
+        ny = ux
+        half = stripe_w / 2.0
+
+        src = np.float32(
+            [
+                [x1 - nx * half, y1 - ny * half],
+                [x2 - nx * half, y2 - ny * half],
+                [x1 + nx * half, y1 + ny * half],
+            ]
         )
 
-        x1r, y1r = rotate_point(x1, y1, cx, cy, angle_deg)
-        x2r, y2r = rotate_point(x2, y2, cx, cy, angle_deg)
+        dst = np.float32(
+            [
+                [0.0, 0.0],
+                [float(width), 0.0],
+                [0.0, float(height)],
+            ]
+        )
 
-        x_start = int(max(0, math.floor(min(x1r, x2r))))
-        x_end = int(min(w, math.ceil(max(x1r, x2r))))
-        y_center = int(round((y1r + y2r) / 2.0))
-        half = int(max(1, round(stripe_w / 2)))
-        y_top = int(max(0, y_center - half))
-        y_bot = int(min(h, y_center + half))
+        M = cv2.getAffineTransform(src, dst)
+        stripe = cv2.warpAffine(
+            roi_bgr,
+            M,
+            (width, height),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_REFLECT,
+        )
 
-        if x_end - x_start < 4 or y_bot - y_top < 2:
+        if stripe.size == 0:
             return None
 
-        stripe = rotated[y_top:y_bot, x_start:x_end].copy()
         return stripe
 
     # ----------------------------- System utils --------------------------------
