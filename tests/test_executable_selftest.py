@@ -57,9 +57,11 @@ def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
     if sys.platform.startswith("linux"):
         missing_packages = _missing_linux_packages()
         if missing_packages:
-            pytest.skip(
+            pytest.fail(
                 "Missing system packages required for Qt: "
                 + ", ".join(sorted(missing_packages))
+                + ". Install them with "
+                "`sudo apt-get update && sudo apt-get install libegl1 libgl1 libxkbcommon-x11-0`."
             )
 
     subprocess.run([sys.executable, str(build_script)], check=True, cwd=project_root)
