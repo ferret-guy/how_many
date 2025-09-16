@@ -750,20 +750,16 @@ class MainController(QtCore.QObject):
         QtCore.QThread.msleep(int(max(0, self.cfg.params.hide_during_capture_ms)))
 
         # Grab desktop
-        screen = QtGui.QGuiApplication.primaryScreen()
-        if screen is None:
-            self.ctrl.set_status("No screen available for capture.")
-            self.overlay.setVisible(True)
-            self.ctrl.setVisible(True)
-            return
-
-        full_pix = screen.grabWindow(0)
-        full_bgr = qpixmap_to_bgr(full_pix)
+        full_bgr = self._capture_virtual_desktop_bgr()
 
         # Show UI back quickly
         self.overlay.setVisible(True)
         self.ctrl.setVisible(True)
         self.app.processEvents()
+
+        if full_bgr is None:
+            self.ctrl.set_status("Unable to capture virtual desktop.")
+            return
 
         virt_rect = self._virtual_desktop_rect()
         x0 = max(0, bbox_virtual.left() - virt_rect.left())
@@ -825,6 +821,59 @@ class MainController(QtCore.QObject):
         )
 
     # ----------------------------- System utils --------------------------------
+
+    def _capture_virtual_desktop_bgr(self) -> Optional[np.ndarray]:
+        """Capture the virtual desktop as BGR with a platform-aware fallback.
+
+        On some platforms grabbing the primary screen already yields the
+        entire virtual desktop, so we can return that pixmap directly. When
+        the primary screen only exposes a single monitor, we fall back to
+        composing the virtual desktop image from individual screen captures.
+        """
+        virt_rect = self._virtual_desktop_rect()
+        if virt_rect.width() <= 0 or virt_rect.height() <= 0:
+            return None
+
+        primary_screen = QtGui.QGuiApplication.primaryScreen()
+        pix: Optional[QtGui.QPixmap] = None
+        if primary_screen is not None:
+            pix = primary_screen.grabWindow(0)
+            if pix is not None and not pix.isNull():
+                ratio = float(pix.devicePixelRatio() or 1.0)
+                width = int(round(pix.width() / ratio))
+                height = int(round(pix.height() / ratio))
+                if width == virt_rect.width() and height == virt_rect.height():
+                    return qpixmap_to_bgr(pix)
+
+        screens = QtGui.QGuiApplication.screens()
+        if not screens:
+            return None
+
+        composite = QtGui.QPixmap(virt_rect.size())
+        composite.fill(QtGui.QColor(0, 0, 0, 255))
+        painter = QtGui.QPainter(composite)
+        origin = virt_rect.topLeft()
+        try:
+            for screen in screens:
+                if screen is None:
+                    continue
+                if (
+                    primary_screen is not None
+                    and screen is primary_screen
+                    and pix is not None
+                    and not pix.isNull()
+                ):
+                    screen_pix = pix
+                else:
+                    screen_pix = screen.grabWindow(0)
+                if screen_pix.isNull():
+                    continue
+                offset = screen.geometry().topLeft() - origin
+                painter.drawPixmap(offset, screen_pix)
+        finally:
+            painter.end()
+
+        return qpixmap_to_bgr(composite)
 
     def _virtual_desktop_rect(self) -> QtCore.QRect:
         rect = QtCore.QRect(0, 0, 0, 0)
