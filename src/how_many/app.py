@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import os
+import traceback
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import math
 import sys
 
 import numpy as np
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets, QtTest
 
 APP_VERSION: str
 
@@ -640,6 +642,17 @@ class MainController(QtCore.QObject):
         super().__init__(None)
         self.app = app
         self.cfg = self._load_config()
+        self._selftest_active = bool(os.environ.get("HOW_MANY_SELFTEST"))
+        marker_env = os.environ.get("HOW_MANY_SELFTEST_MARKER")
+        self._selftest_marker: Optional[Path] = None
+        if marker_env:
+            try:
+                self._selftest_marker = Path(marker_env)
+            except Exception:
+                self._selftest_marker = None
+        self._selftest_triggered = False
+        self._selftest_exit_done = False
+        self._selftest_orig_excepthook: Optional[Callable[..., None]] = None
 
         # Compute virtual desktop rect (union of all screens)
         virt_rect = self._virtual_desktop_rect()
@@ -681,6 +694,98 @@ class MainController(QtCore.QObject):
 
         # Place control away from line
         self.ctrl.move(int(virt_rect.left() + 80), int(virt_rect.top() + 80))
+
+        if self._selftest_active:
+            self._selftest_setup()
+            QtCore.QTimer.singleShot(250, self._selftest_drive)
+            # Failsafe so the executable eventually exits even if the key event fails.
+            QtCore.QTimer.singleShot(5000, self._selftest_timeout)
+
+    def _selftest_drive(self) -> None:
+        if not self._selftest_active:
+            return
+
+        try:
+            target = self.overlay
+        except AttributeError:
+            return
+
+        if target is None:
+            return
+
+        target.activateWindow()
+        try:
+            target.raise_()
+        except Exception:
+            pass
+        target.setFocus(QtCore.Qt.FocusReason.OtherFocusReason)
+        QtTest.QTest.qWait(50)
+        QtTest.QTest.keyClick(target, QtCore.Qt.Key.Key_A)
+
+    def _selftest_setup(self) -> None:
+        if self._selftest_marker is not None:
+            try:
+                if self._selftest_marker.exists():
+                    self._selftest_marker.unlink()
+            except OSError:
+                pass
+        self._selftest_exit_done = False
+        self._selftest_orig_excepthook = sys.excepthook
+
+        def _excepthook(exc_type, exc, tb) -> None:
+            detail = "".join(traceback.format_exception(exc_type, exc, tb))
+            self._selftest_finish(success=False, exit_code=2, detail=detail)
+            if self._selftest_orig_excepthook is not None:
+                try:
+                    self._selftest_orig_excepthook(exc_type, exc, tb)
+                except Exception:
+                    pass
+
+        sys.excepthook = _excepthook
+        self.app.aboutToQuit.connect(self._selftest_restore_excepthook)
+
+    def _selftest_restore_excepthook(self) -> None:
+        if self._selftest_orig_excepthook is not None:
+            sys.excepthook = self._selftest_orig_excepthook
+            self._selftest_orig_excepthook = None
+
+    def _selftest_append_marker(self, text: str) -> None:
+        if self._selftest_marker is None:
+            return
+        try:
+            self._selftest_marker.parent.mkdir(parents=True, exist_ok=True)
+            with self._selftest_marker.open("a", encoding="utf-8") as fh:
+                fh.write(text)
+        except OSError:
+            pass
+
+    def _selftest_finish(self, *, success: bool, exit_code: int, detail: str = "") -> None:
+        if not self._selftest_active or self._selftest_exit_done:
+            return
+        self._selftest_exit_done = True
+        if success:
+            self._selftest_append_marker("selftest-ok\n")
+        else:
+            self._selftest_append_marker("selftest-error\n")
+            if detail:
+                if not detail.endswith("\n"):
+                    detail += "\n"
+                self._selftest_append_marker(detail)
+        self.app.exit(exit_code)
+
+    def _selftest_success(self) -> None:
+        if self._selftest_exit_done:
+            return
+        self._selftest_finish(success=True, exit_code=0)
+
+    def _selftest_timeout(self) -> None:
+        if self._selftest_exit_done:
+            return
+        self._selftest_finish(
+            success=False,
+            exit_code=3,
+            detail="Self-test timeout waiting for analyze shortcut.",
+        )
 
     # ---------------------------- Config I/O ----------------------------------
 
@@ -734,6 +839,11 @@ class MainController(QtCore.QObject):
 
     def analyze(self) -> None:
         """Capture stripe under the overlay line, estimate counts, update UI."""
+        if self._selftest_active and not self._selftest_triggered:
+            self._selftest_triggered = True
+            self._selftest_append_marker("analyze-called\n")
+            QtCore.QTimer.singleShot(50, self._selftest_success)
+
         L = self.overlay.line_length()
         if L < self.cfg.params.min_length_px:
             self.ctrl.set_status(
