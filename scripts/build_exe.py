@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ def _version_tuple(version: str) -> tuple[int, int, int, int]:
     return tuple(parts[:4])
 
 
-def _write_version_file(version: str) -> Path:
+def _write_version_file(version: str, original_filename: str) -> Path:
     numbers = _version_tuple(version)
     contents = dedent(
         f"""
@@ -52,7 +53,7 @@ def _write_version_file(version: str) -> Path:
                     StringStruct('FileDescription', 'how_many overlay'),
                     StringStruct('FileVersion', '{version}'),
                     StringStruct('InternalName', 'how_many'),
-                    StringStruct('OriginalFilename', 'how_many.exe'),
+                    StringStruct('OriginalFilename', '{original_filename}'),
                     StringStruct('ProductName', 'how_many'),
                     StringStruct('ProductVersion', '{version}')
                   ]
@@ -68,6 +69,12 @@ def _write_version_file(version: str) -> Path:
     with NamedTemporaryFile("w", delete=False, suffix=".txt") as fp:
         fp.write(contents)
         return Path(fp.name)
+
+
+def _normalized_version_tag(version: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", version.strip())
+    sanitized = sanitized.strip("._-")
+    return sanitized or "0.0.0"
 
 
 @dataclass
@@ -130,18 +137,21 @@ def main() -> None:
     version_file: Path | None = None
     embedded_dir: TemporaryDirectory[str] | None = None
     version_resource: Path | None = None
+    version_tag = _normalized_version_tag(version)
+    versioned_name = f"{cfg.name}-v{version_tag}"
+    original_filename = f"{versioned_name}.exe"
     script_path = root / cfg.entry
     cmd: list[str] = [
         "pyinstaller",
         "--noconsole",
         "--onefile",
         "--name",
-        cfg.name,
+        versioned_name,
         "--clean",
         str(script_path),
     ]
     try:
-        version_file = _write_version_file(version)
+        version_file = _write_version_file(version, original_filename)
     except Exception:
         version_file = None
 
