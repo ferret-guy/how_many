@@ -35,11 +35,11 @@
   - `W` / `Q` — Widen or narrow the stripe `W`.
   - `Esc` — Close the overlay.
 
-## Usage
+## Running
 
-- `uv sync --group build --group test`
-- `uv run python -m how_many`
-- `uv run python scripts/build_exe.py`
+- **Setup (uv):** `uv sync --group build --group test`
+- **Run (uv):** `uv run python -m how_many`
+- **Or build an executable**: `uv run python scripts/build_exe.py`
 
 ## Continuous integration
 
