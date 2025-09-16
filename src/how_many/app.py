@@ -12,16 +12,23 @@ import cv2  # opencv-python
 import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 
+APP_VERSION: str
+
 if __package__ in (None, ""):
     PACKAGE_ROOT = Path(__file__).resolve().parents[1]
     if str(PACKAGE_ROOT) not in sys.path:
         sys.path.insert(0, str(PACKAGE_ROOT))
 
+    import how_many as _pkg
+
     from how_many.analysis import estimate_counts_from_profile
     from how_many.models import AppConfig, Suggestion, UIState
     from how_many.utils import clamp
     from how_many.utils.qt import qpixmap_to_bgr
+
+    APP_VERSION = getattr(_pkg, "__version__", "0.0.0")
 else:
+    from . import __version__ as APP_VERSION
     from .analysis import estimate_counts_from_profile
     from .models import AppConfig, Suggestion, UIState
     from .utils import clamp
@@ -453,9 +460,12 @@ class ControlDialog(QtWidgets.QDialog):
     alwaysOnTopToggled = QtCore.Signal(bool)
     suggestionChosen = QtCore.Signal(int)
 
-    def __init__(self, cfg: AppConfig) -> None:
+    def __init__(self, cfg: AppConfig, app_version: str) -> None:
         super().__init__(None)
-        self.setWindowTitle("how_many — Stripe Periodicity Estimator")
+        self._app_version = app_version or "unknown"
+        self.setWindowTitle(
+            f"how_many {self._app_version} — Stripe Periodicity Estimator"
+        )
         self.setWindowFlag(
             QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top
         )
@@ -563,7 +573,8 @@ class ControlDialog(QtWidgets.QDialog):
     # --- helpers ---
     def _help_markdown(self) -> str:
         return (
-            "<h3>how_many — quick reference</h3>"
+            f"<h3>how_many {self._app_version} — quick reference</h3>"
+            f"<p style='color:#666;margin:0 0 12px 0;'>Version {self._app_version}</p>"
             "<ul>"
             "<li><b>Position</b> the two dots across the repeating row.</li>"
             "<li>Adjust <b>Stripe width</b> so the blue rectangle covers the features.</li>"
@@ -633,7 +644,8 @@ class MainController(QtCore.QObject):
 
         # Windows
         self.overlay = OverlayWidget(virt_rect, self.cfg)
-        self.ctrl = ControlDialog(self.cfg)
+        self._app_version = app.applicationVersion() or APP_VERSION
+        self.ctrl = ControlDialog(self.cfg, self._app_version)
 
         # Wire signals
         self.ctrl.analyzeRequested.connect(self.analyze)
@@ -885,6 +897,7 @@ class MainController(QtCore.QObject):
 def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("how_many")
+    app.setApplicationVersion(APP_VERSION)
 
     ctrl = MainController(app)
     ret = app.exec()
