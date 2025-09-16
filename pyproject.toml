@@ -1,12 +1,17 @@
+[build-system]
+requires = ["setuptools>=69", "setuptools-scm>=8.1"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "how-many"
-version = "1.0"
+dynamic = ["version"]
 description = "Always-on-top overlay for counting repeated image features."
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.5",
     "numpy>=1.25",
     "opencv-python-headless>=4.9",
+    "setuptools-scm>=8.1",
 ]
 
 [dependency-groups]
@@ -41,6 +46,8 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools_scm]
 
 [tool.how-many]
 scipy-reference-version = "1.15.3"

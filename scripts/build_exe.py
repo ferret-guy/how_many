@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from textwrap import dedent
 
 
@@ -77,14 +79,57 @@ class BuildConfig:
 def main() -> None:
     cfg = BuildConfig()
     root = Path(__file__).resolve().parent.parent
-    sys.path.insert(0, str(root / "src"))
+    src_path = root / "src"
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+
+    version = "0.0.0"
+    resolved_version: str | None = None
+
     try:
-        pkg = import_module("how_many")
-        version = getattr(pkg, "__version__", "0.0.0")
-    except Exception:  # pragma: no cover - build script safety net
-        version = "0.0.0"
+        import setuptools_scm  # type: ignore[import-untyped]
+    except Exception:
+        pass
+    else:
+        try:
+            resolved_version = str(
+                setuptools_scm.get_version(
+                    root=str(root),
+                    fallback_version="0.0.0",
+                )
+            )
+        except Exception:
+            resolved_version = None
+
+    if resolved_version is None:
+        try:
+            version_module = import_module("how_many._version")
+        except Exception:
+            version_module = None
+        if version_module is not None:
+            get_version = getattr(version_module, "get_version", None)
+            if callable(get_version):
+                try:
+                    resolved_version = str(get_version())
+                except Exception:
+                    resolved_version = None
+
+    if resolved_version is None:
+        try:
+            pkg = import_module("how_many")
+        except Exception:
+            pkg = None
+        if pkg is not None:
+            pkg_version = getattr(pkg, "__version__", None)
+            if isinstance(pkg_version, str):
+                resolved_version = pkg_version
+
+    if resolved_version is not None:
+        version = resolved_version
 
     version_file: Path | None = None
+    embedded_dir: TemporaryDirectory[str] | None = None
+    version_resource: Path | None = None
     script_path = root / cfg.entry
     cmd: list[str] = [
         "pyinstaller",
@@ -100,8 +145,20 @@ def main() -> None:
     except Exception:
         version_file = None
 
+    try:
+        embedded_dir = TemporaryDirectory()
+        version_resource = Path(embedded_dir.name) / "version.json"
+        with version_resource.open("w", encoding="utf-8") as fp:
+            json.dump({"version": version}, fp, indent=4)
+    except Exception:
+        version_resource = None
+
     if version_file is not None:
         cmd.extend(["--version-file", str(version_file)])
+
+    if version_resource is not None:
+        data_spec = f"{os.fspath(version_resource)}{os.pathsep}."
+        cmd.extend(["--add-data", data_spec])
 
     try:
         sys.exit(subprocess.call(cmd))
@@ -111,6 +168,8 @@ def main() -> None:
                 version_file.unlink()
             except OSError:
                 pass
+        if embedded_dir is not None:
+            embedded_dir.cleanup()
 
 
 if __name__ == "__main__":
