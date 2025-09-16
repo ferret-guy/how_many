@@ -2,18 +2,65 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Iterable
 
 import pytest
+
+
+def _library_available(candidates: Iterable[str]) -> bool:
+    """Return True if any candidate library can be loaded via dlopen."""
+
+    for candidate in candidates:
+        try:
+            ctypes.CDLL(candidate)
+            return True
+        except OSError:
+            resolved = ctypes.util.find_library(candidate)
+            if resolved and resolved != candidate:
+                try:
+                    ctypes.CDLL(resolved)
+                    return True
+                except OSError:
+                    continue
+    return False
+
+
+def _missing_linux_packages() -> list[str]:
+    """Identify required system packages that are absent on Linux."""
+
+    required = {
+        "libegl1": ("EGL", "libEGL.so.1"),
+        "libgl1": ("GL", "libGL.so.1"),
+        "libxkbcommon-x11-0": ("xkbcommon-x11", "libxkbcommon-x11.so.0"),
+    }
+    missing: list[str] = []
+
+    for package, sonames in required.items():
+        if not _library_available(sonames):
+            missing.append(package)
+
+    return missing
+
 
 def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
     """Build the PyInstaller bundle and ensure the analyze shortcut fires in self-test mode."""
 
     project_root = Path(__file__).resolve().parents[1]
     build_script = project_root / "scripts" / "build_exe.py"
+
+    if sys.platform.startswith("linux"):
+        missing_packages = _missing_linux_packages()
+        if missing_packages:
+            pytest.skip(
+                "Missing system packages required for Qt: "
+                + ", ".join(sorted(missing_packages))
+            )
 
     subprocess.run([sys.executable, str(build_script)], check=True, cwd=project_root)
 
