@@ -36,13 +36,10 @@ jobs:
         include:
           - os: windows-latest
             artifact: how-many-windows
-            binary: dist/how_many.exe
           - os: macos-latest
             artifact: how-many-macos
-            binary: dist/how_many
           - os: ubuntu-latest
             artifact: how-many-linux
-            binary: dist/how_many
     runs-on: ${{ matrix.os }}
     env:
       UV_PYTHON: "3.11"
@@ -62,12 +59,17 @@ jobs:
       - name: Sync dependencies
         run: uv sync --group build
 
+      - name: Capture build version
+        id: version
+        run: >-
+          uv run python -c "import os,re; from how_many._version import get_version; version=get_version(); sanitized=re.sub(r'[^A-Za-z0-9._-]+','-',version.strip()).strip('._-') or '0.0.0'; basename=f'how_many-v{sanitized}'; fh=open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8'); fh.write(f'version={version}\n'); fh.write(f'version_tag={sanitized}\n'); fh.write(f'artifact_basename={basename}\n'); fh.close()"
+
       - name: Build executable with PyInstaller
         run: uv run python scripts/build_exe.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.binary }}
+          name: ${{ matrix.artifact }}-v${{ steps.version.outputs.version_tag }}
+          path: dist/how_many/${{ steps.version.outputs.artifact_basename }}*
           if-no-files-found: error
