@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ._version import get_version
-
-__version__ = get_version()
+__version__ = "1.0"
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checkers
     from .app import main as _main_type
@@ -20,4 +18,4 @@ def main() -> None:
     _main()
 
 
-__all__ = ["main", "get_version", "__version__"]
+__all__ = ["main", "__version__"]
