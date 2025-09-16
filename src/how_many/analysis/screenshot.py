@@ -7,11 +7,6 @@ import math
 
 import numpy as np
 
-try:  # pragma: no cover - exercised via fallback paths in tests
-    import cv2  # type: ignore
-except Exception:  # pragma: no cover - we intentionally support running without OpenCV
-    cv2 = None
-
 from ..models import Suggestion
 from .core import estimate_counts_from_profile
 
@@ -20,21 +15,16 @@ Point = Tuple[float, float]
 
 
 def _coerce_bgr(image: np.ndarray) -> np.ndarray:
-    """Return a BGR image regardless of the input channel layout."""
+    """Return a contiguous BGR image regardless of the input layout."""
 
     arr = np.asarray(image)
     if arr.ndim == 2:
-        if cv2 is not None:
-            return cv2.cvtColor(arr.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-        arr = arr.astype(np.float64, copy=False)
-        return np.repeat(arr[:, :, None], 3, axis=2)
+        return np.repeat(arr[..., None], 3, axis=2)
     if arr.ndim == 3:
         if arr.shape[2] == 3:
-            return arr
+            return np.ascontiguousarray(arr)
         if arr.shape[2] == 4:
-            if cv2 is not None:
-                return cv2.cvtColor(arr, cv2.COLOR_BGRA2BGR)
-            return arr[..., :3]
+            return np.ascontiguousarray(arr[..., :3])
     raise ValueError("Expected a grayscale or BGR/BGRA screenshot array.")
 
 
@@ -95,13 +85,24 @@ def _extract_aligned_stripe_numpy(
 
 
 def _gaussian_blur_numpy(gray: np.ndarray, sigma: float) -> np.ndarray:
-    radius = max(1, int(round(3.0 * sigma)))
-    x = np.arange(-radius, radius + 1, dtype=np.float64)
-    kernel = np.exp(-(x * x) / (2.0 * sigma * sigma))
-    kernel /= float(np.sum(kernel))
+    base_radius = max(1, int(math.ceil(4.0 * sigma)))
 
     def convolve_axis(data: np.ndarray, axis: int) -> np.ndarray:
-        return np.apply_along_axis(lambda m: np.convolve(m, kernel, mode="same"), axis, data)
+        length = data.shape[axis]
+        radius = min(base_radius, max(0, length - 1))
+        if radius == 0:
+            return data
+
+        x = np.arange(-radius, radius + 1, dtype=np.float64)
+        kernel = np.exp(-(x * x) / (2.0 * sigma * sigma))
+        kernel /= float(np.sum(kernel))
+
+        pad_width = [(0, 0)] * data.ndim
+        pad_width[axis] = (radius, radius)
+        padded = np.pad(data, pad_width, mode="reflect")
+        return np.apply_along_axis(
+            lambda m: np.convolve(m, kernel, mode="valid"), axis, padded
+        )
 
     blurred = convolve_axis(gray, axis=0)
     blurred = convolve_axis(blurred, axis=1)
@@ -127,58 +128,15 @@ def extract_aligned_stripe(
     """
 
     img = _coerce_bgr(screenshot_bgr)
+    original_dtype = img.dtype
     stripe_w = max(2, int(stripe_width_px))
 
-    if cv2 is not None:
-        x1, y1 = float(p1[0]), float(p1[1])
-        x2, y2 = float(p2[0]), float(p2[1])
-        dx = x2 - x1
-        dy = y2 - y1
-        length = math.hypot(dx, dy)
-        if length < 4.0:
-            raise ValueError("Overlay line too short to extract a stripe.")
-
-        stripe_len = max(4, int(math.ceil(length)))
-        ux = dx / length
-        uy = dy / length
-        nx = -uy
-        ny = ux
-        half = stripe_w / 2.0
-
-        src = np.float32(
-            [
-                [x1 - nx * half, y1 - ny * half],
-                [x2 - nx * half, y2 - ny * half],
-                [x1 + nx * half, y1 + ny * half],
-            ]
-        )
-
-        dst = np.float32(
-            [
-                [0.0, 0.0],
-                [float(stripe_len), 0.0],
-                [0.0, float(stripe_w)],
-            ]
-        )
-
-        transform = cv2.getAffineTransform(src, dst)
-        stripe = cv2.warpAffine(
-            img,
-            transform,
-            (stripe_len, stripe_w),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REFLECT,
-        )
-
-        if stripe.size == 0:
-            raise ValueError("Stripe extraction returned an empty array.")
-
-        return stripe
-
     stripe = _extract_aligned_stripe_numpy(img, p1, p2, stripe_w)
-    if np.issubdtype(img.dtype, np.integer):
-        stripe = np.clip(stripe, 0.0, 255.0)
-        return stripe.astype(img.dtype)
+    if np.issubdtype(original_dtype, np.integer):
+        info = np.iinfo(original_dtype)
+        stripe = np.rint(stripe)
+        stripe = np.clip(stripe, float(info.min), float(info.max))
+        return stripe.astype(original_dtype)
     return stripe
 
 
@@ -194,23 +152,12 @@ def stripe_profile_from_screenshot(
 
     stripe = extract_aligned_stripe(screenshot_bgr, p1, p2, stripe_width_px)
 
-    if cv2 is not None:
-        gray = cv2.cvtColor(stripe, cv2.COLOR_BGR2GRAY)
-    else:
-        stripe_float = stripe.astype(np.float64, copy=False)
-        gray = (
-            0.114 * stripe_float[..., 0]
-            + 0.587 * stripe_float[..., 1]
-            + 0.299 * stripe_float[..., 2]
-        )
+    stripe_float = stripe.astype(np.float64, copy=False)
+    weights = np.array([0.114, 0.587, 0.299], dtype=np.float64)
+    gray = np.tensordot(stripe_float, weights, axes=([-1], [0]))
 
     if blur_sigma_px > 0.1:
-        if cv2 is not None:
-            radius = int(round(3 * float(blur_sigma_px)))
-            ksize = max(3, int(2 * radius + 1))
-            gray = cv2.GaussianBlur(gray, (ksize, ksize), float(blur_sigma_px))
-        else:
-            gray = _gaussian_blur_numpy(gray.astype(np.float64, copy=False), float(blur_sigma_px))
+        gray = _gaussian_blur_numpy(gray.astype(np.float64, copy=False), float(blur_sigma_px))
 
     profile = np.mean(gray, axis=0)
     return profile.astype(np.float64, copy=False)
