@@ -2,14 +2,19 @@
 
 - Always-on-top overlay for counting evenly spaced structures directly on any image.
 - Drag a line across the features to let the tool analyse the stripe underneath and suggest likely counts.
-- Example overlay:
-  - ![How Many demo](https://storage.googleapis.com/generative-static-how_many/A8NwcEbY6nQf2vK1rNaREgXATuj2/uWrKX0HmUhQFPWaZYWn5ZNKI2OR2/3X2tFFyz3y4uwTszqfyk1E0x7s83/004Zwc3L6vgWzY5FSgjUHTrOCi12)
+
+## Demo
+
+![How Many demo](docs/images/how-many-demo.png)
+
+- run with `uvx --from git+https://github.com/ferret-guy/how_many how-many`
+- Or grab a pre-built package from a [release](https://github.com/ferret-guy/how_many/releases).
 
 ## Feature highlights
 
 - Transparent overlay window with draggable endpoints, configurable stripe, and tick markers.
 - Control dialog bundling analysis controls, profile visualisation, and a quick-reference help tab.
-- Automatic FFT and autocorrelation suggestions with the off-by-one correction (items = cycles + 1).
+- Automatic FFT and autocorrelation suggestions (works 50% of the time, every time).
 - Manual item-count override with instant overlay feedback.
 - Profile tab exposing the 1-D signal and the candidate list powering the UI.
 - Keyboard shortcuts for analysis, stripe adjustments, and manual counts.
