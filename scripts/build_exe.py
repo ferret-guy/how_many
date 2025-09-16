@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -141,12 +142,35 @@ def main() -> None:
     versioned_name = f"{cfg.name}-v{version_tag}"
     original_filename = f"{versioned_name}.exe"
     script_path = root / cfg.entry
+    dist_dir = root / "dist" / cfg.name
+    build_dir = root / "build" / versioned_name
+    try:
+        if dist_dir.exists():
+            if dist_dir.is_dir():
+                shutil.rmtree(dist_dir)
+            else:
+                dist_dir.unlink()
+    except Exception:
+        pass
+    dist_dir.mkdir(parents=True, exist_ok=True)
+
+    build_dir.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
+    except Exception:
+        pass
+
     cmd: list[str] = [
         "pyinstaller",
         "--noconsole",
         "--onefile",
         "--name",
         versioned_name,
+        "--distpath",
+        str(dist_dir),
+        "--workpath",
+        str(build_dir),
         "--clean",
         str(script_path),
     ]
