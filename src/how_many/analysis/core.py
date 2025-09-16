@@ -60,7 +60,7 @@ def estimate_counts_from_profile(
     fft_mag[0] = 0.0  # ignore DC
 
     spectral = fft_mag.copy()
-    spectral[:2] = 0.0  # ignore ultra-low frequencies
+    spectral[0] = 0.0  # ignore DC but keep the first harmonic for short stripes
 
     spec_max = float(np.max(spectral)) if np.max(spectral) > 0 else 0.0
     if spec_max > 0:

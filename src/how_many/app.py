@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import math
 import sys
 
-import cv2  # opencv-python
 import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -21,7 +20,10 @@ if __package__ in (None, ""):
 
     import how_many as _pkg
 
-    from how_many.analysis import estimate_counts_from_profile
+    from how_many.analysis import (
+        estimate_counts_from_profile,
+        stripe_profile_from_screenshot,
+    )
     from how_many.models import AppConfig, Suggestion, UIState
     from how_many.utils import clamp
     from how_many.utils.qt import qpixmap_to_bgr
@@ -29,7 +31,7 @@ if __package__ in (None, ""):
     APP_VERSION = getattr(_pkg, "__version__", "0.0.0")
 else:
     from . import __version__ as APP_VERSION
-    from .analysis import estimate_counts_from_profile
+    from .analysis import estimate_counts_from_profile, stripe_profile_from_screenshot
     from .models import AppConfig, Suggestion, UIState
     from .utils import clamp
     from .utils.qt import qpixmap_to_bgr
@@ -783,21 +785,17 @@ class MainController(QtCore.QObject):
         p1_local = (p1_v.x() - virt_rect.left() - x0, p1_v.y() - virt_rect.top() - y0)
         p2_local = (p2_v.x() - virt_rect.left() - x0, p2_v.y() - virt_rect.top() - y0)
 
-        stripe = self._extract_aligned_stripe(
-            roi, p1_local, p2_local, self.cfg.params.stripe_width_px
-        )
-
-        if stripe is None:
+        try:
+            profile = stripe_profile_from_screenshot(
+                roi,
+                p1_local,
+                p2_local,
+                self.cfg.params.stripe_width_px,
+                blur_sigma_px=self.cfg.params.blur_sigma_px,
+            )
+        except ValueError:
             self.ctrl.set_status("Failed to extract stripe (out of bounds).")
             return
-
-        gray = cv2.cvtColor(stripe, cv2.COLOR_BGR2GRAY)
-        if self.cfg.params.blur_sigma_px > 0.1:
-            ksize = max(3, int(2 * round(3 * self.cfg.params.blur_sigma_px) + 1))
-            gray = cv2.GaussianBlur(gray, (ksize, ksize), self.cfg.params.blur_sigma_px)
-
-        # Average across width to get 1D profile
-        profile = np.mean(gray, axis=0)
 
         suggestions = estimate_counts_from_profile(
             profile, max_candidates=self.cfg.params.suggest_max
@@ -825,62 +823,6 @@ class MainController(QtCore.QObject):
         self.ctrl.set_status(
             f"Best estimate: {best.count} items (confidence {best.confidence:.2f})."
         )
-
-    def _extract_aligned_stripe(
-        self,
-        roi_bgr: np.ndarray,
-        p1: Tuple[float, float],
-        p2: Tuple[float, float],
-        stripe_w: int,
-    ) -> Optional[np.ndarray]:
-        """Sample a stripe aligned with the overlay line regardless of its angle."""
-
-        x1, y1 = float(p1[0]), float(p1[1])
-        x2, y2 = float(p2[0]), float(p2[1])
-        dx = x2 - x1
-        dy = y2 - y1
-        L = math.hypot(dx, dy)
-        if L < 4.0:
-            return None
-
-        width = max(4, int(math.ceil(L)))
-        height = max(2, int(max(1, stripe_w)))
-
-        ux = dx / L
-        uy = dy / L
-        nx = -uy
-        ny = ux
-        half = stripe_w / 2.0
-
-        src = np.float32(
-            [
-                [x1 - nx * half, y1 - ny * half],
-                [x2 - nx * half, y2 - ny * half],
-                [x1 + nx * half, y1 + ny * half],
-            ]
-        )
-
-        dst = np.float32(
-            [
-                [0.0, 0.0],
-                [float(width), 0.0],
-                [0.0, float(height)],
-            ]
-        )
-
-        M = cv2.getAffineTransform(src, dst)
-        stripe = cv2.warpAffine(
-            roi_bgr,
-            M,
-            (width, height),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_REFLECT,
-        )
-
-        if stripe.size == 0:
-            return None
-
-        return stripe
 
     # ----------------------------- System utils --------------------------------
 
