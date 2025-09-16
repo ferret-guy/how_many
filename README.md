@@ -5,7 +5,7 @@
 
 ## Demo
 
-![How Many demo](docs/images/how-many-demo.png)
+![How Many demo](docs/images/how-many-demo.gif)
 
 - run with `uvx --from git+https://github.com/ferret-guy/how_many how-many`
 - Or grab a pre-built package from a [release](https://github.com/ferret-guy/how_many/releases).
