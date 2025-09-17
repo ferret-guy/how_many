@@ -24,7 +24,6 @@ _DROP_TOKENS = {
     "libqvnc",
     "libqminimal",
     "libqminimalegl",
-    "libqoffscreen",
     "libqvkkhrdisplay",
     "libqxcb-egl-integration",
     "libqxcb-glx-integration",

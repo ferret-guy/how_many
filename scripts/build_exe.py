@@ -94,10 +94,13 @@ def _format_size(num: int) -> str:
 
 
 def _category_for_entry(name: str) -> str:
+    lowered = name.lower()
     if name.startswith(("pyimod", "pyi_rth")) or name in {"struct", "pyz"}:
         return "PyInstaller bootstrap"
     if name == "PYZ.pyz":
         return "Python modules (PYZ)"
+    if "icu" in lowered:
+        return "ICU libraries"
     if name.startswith("PySide6/") or name.startswith("shiboken6") or name.startswith("libQt6"):
         return "PySide6"
     if name.startswith("numpy") or name.startswith("libgfortran") or name.startswith("libquadmath"):
@@ -152,7 +155,6 @@ OPTIONAL_TOKENS = (
     "libqeglfs",
     "libqvnc",
     "libqminimal",
-    "libqoffscreen",
     "libqvkkhrdisplay",
     "libqxcb-egl-integration",
     "libqxcb-glx-integration",
@@ -348,7 +350,6 @@ def main() -> None:
         "PySide6.QtSql",
         "PySide6.QtStateMachine",
         "PySide6.QtSvg",
-        "PySide6.QtTest",
         "PySide6.QtTextToSpeech",
         "PySide6.QtUiTools",
         "PySide6.QtVirtualKeyboard",
@@ -374,7 +375,6 @@ def main() -> None:
         "libqvnc",
         "libqminimal",
         "libqminimalegl",
-        "libqoffscreen",
         "libqvkkhrdisplay",
         "libqxcb-egl-integration",
         "libqxcb-glx-integration",
