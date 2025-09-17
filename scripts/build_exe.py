@@ -398,6 +398,16 @@ def main() -> None:
         "PySide6/Qt/translations",
     ]
 
+    upx_excludes: list[str] = []
+    if sys.platform.startswith("win"):
+        major, minor = sys.version_info[:2]
+        upx_excludes.extend(
+            [
+                f"python{major}{minor}.dll",
+                f"python{major}.dll",
+            ]
+        )
+
     spec_source = dedent(
         f"""
         # -*- mode: python ; coding: utf-8 -*-
@@ -447,7 +457,7 @@ def main() -> None:
             bootloader_ignore_signals=False,
             strip=True,
             upx=True,
-            upx_exclude=[],
+            upx_exclude={upx_excludes!r},
             runtime_tmpdir=None,
             console=False,
             disable_windowed_traceback=False,
