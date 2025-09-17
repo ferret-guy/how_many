@@ -9,7 +9,9 @@ import numpy as np
 
 try:  # pragma: no cover - exercised via fallback paths in tests
     import cv2  # type: ignore
-except Exception:  # pragma: no cover - we intentionally support running without OpenCV
+except (
+    Exception
+):  # pragma: no cover - we intentionally support running without OpenCV
     cv2 = None
 
 from ..models import Suggestion
@@ -20,7 +22,6 @@ Point = Tuple[float, float]
 
 def _coerce_bgr(image: np.ndarray) -> np.ndarray:
     """Return a BGR image regardless of the input channel layout."""
-
     arr = np.asarray(image)
     if arr.ndim == 2:
         if cv2 is not None:
@@ -37,7 +38,9 @@ def _coerce_bgr(image: np.ndarray) -> np.ndarray:
     raise ValueError("Expected a grayscale or BGR/BGRA screenshot array.")
 
 
-def _bilinear_sample(image: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _bilinear_sample(
+    image: np.ndarray, x: np.ndarray, y: np.ndarray
+) -> np.ndarray:
     h, w, c = image.shape
     x0 = np.floor(x).astype(int)
     y0 = np.floor(y).astype(int)
@@ -85,11 +88,17 @@ def _extract_aligned_stripe_numpy(
     xs = x1 + ux * positions
     ys = y1 + uy * positions
 
-    offsets = np.linspace(-(stripe_w - 1) / 2.0, (stripe_w - 1) / 2.0, stripe_w)
+    offsets = np.linspace(
+        -(stripe_w - 1) / 2.0,
+        (stripe_w - 1) / 2.0,
+        stripe_w,
+    )
     grid_x = xs[None, :] + nx * offsets[:, None]
     grid_y = ys[None, :] + ny * offsets[:, None]
 
-    stripe = _bilinear_sample(img.astype(np.float64, copy=False), grid_x, grid_y)
+    stripe = _bilinear_sample(
+        img.astype(np.float64, copy=False), grid_x, grid_y
+    )
     return stripe
 
 
@@ -126,7 +135,6 @@ def extract_aligned_stripe(
     stripe_width_px:
         Desired stripe thickness in pixels.
     """
-
     img = _coerce_bgr(screenshot_bgr)
     stripe_w = max(2, int(stripe_width_px))
 
@@ -192,7 +200,6 @@ def stripe_profile_from_screenshot(
     blur_sigma_px: float = 0.0,
 ) -> np.ndarray:
     """Return the averaged stripe profile underneath the overlay handles."""
-
     stripe = extract_aligned_stripe(screenshot_bgr, p1, p2, stripe_width_px)
 
     if cv2 is not None:
@@ -229,7 +236,6 @@ def estimate_counts_from_screenshot(
     max_candidates: int = 5,
 ) -> Tuple[np.ndarray, List[Suggestion]]:
     """High-level helper mirroring the UI pipeline without Qt objects."""
-
     profile = stripe_profile_from_screenshot(
         screenshot_bgr,
         p1,
@@ -237,7 +243,9 @@ def estimate_counts_from_screenshot(
         stripe_width_px,
         blur_sigma_px=blur_sigma_px,
     )
-    suggestions = estimate_counts_from_profile(profile, max_candidates=max_candidates)
+    suggestions = estimate_counts_from_profile(
+        profile, max_candidates=max_candidates
+    )
     return profile, suggestions
 
 

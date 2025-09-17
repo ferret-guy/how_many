@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
 
@@ -26,6 +26,7 @@ def _version_tuple(version: str) -> tuple[int, int, int, int]:
 
 
 def _write_version_file(version: str) -> Path:
+    """Create a temporary version metadata file for PyInstaller."""
     numbers = _version_tuple(version)
     contents = dedent(
         f"""
@@ -70,11 +71,14 @@ def _write_version_file(version: str) -> Path:
 
 @dataclass
 class BuildConfig:
+    """Describe the PyInstaller build inputs."""
+
     name: str = "how_many"
     entry: Path = Path("src/how_many/app.py")
 
 
 def main() -> None:
+    """Build the application executable using PyInstaller."""
     cfg = BuildConfig()
     root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(root / "src"))

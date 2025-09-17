@@ -12,7 +12,6 @@ if TYPE_CHECKING:  # pragma: no cover - only for type checkers
 
 def main() -> None:
     """Entry point for ``python -m how_many`` and console scripts."""
-
     from .app import main as _main
 
     _main()

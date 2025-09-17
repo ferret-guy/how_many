@@ -10,7 +10,6 @@ def rotate_point(
     x: float, y: float, cx: float, cy: float, angle_deg: float
 ) -> Tuple[float, float]:
     """Rotate a point around ``(cx, cy)`` by ``angle_deg`` degrees."""
-
     theta = math.radians(angle_deg)
     cos_t = math.cos(theta)
     sin_t = math.sin(theta)
@@ -23,7 +22,6 @@ def rotate_point(
 
 def clamp(value: float, lo: float, hi: float) -> float:
     """Clamp ``value`` to the inclusive range ``[lo, hi]``."""
-
     return max(lo, min(hi, value))
 
 

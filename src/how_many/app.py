@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import math
 import os
+from pathlib import Path
 import sys
 import traceback
-from pathlib import Path
 from typing import Callable, List, Optional
 
-import numpy as np
 from PySide6 import QtCore, QtGui, QtTest, QtWidgets
+import numpy as np
 
 APP_VERSION: str
 
@@ -19,11 +19,8 @@ if __package__ in (None, ""):
     if str(PACKAGE_ROOT) not in sys.path:
         sys.path.insert(0, str(PACKAGE_ROOT))
 
+    from how_many import analysis as _analysis
     import how_many as _pkg
-    from how_many.analysis import (
-        estimate_counts_from_profile,
-        stripe_profile_from_screenshot,
-    )
     from how_many.models import AppConfig, Suggestion
     from how_many.utils import clamp
     from how_many.utils.qt import qpixmap_to_bgr
@@ -31,25 +28,34 @@ if __package__ in (None, ""):
     APP_VERSION = getattr(_pkg, "__version__", "0.0.0")
 else:
     from . import __version__ as APP_VERSION
-    from .analysis import estimate_counts_from_profile, stripe_profile_from_screenshot
+    from . import analysis as _analysis
     from .models import AppConfig, Suggestion
     from .utils import clamp
     from .utils.qt import qpixmap_to_bgr
 
 
-# ------------------------------ Overlay Widget --------------------------------
+estimate_counts_from_profile = _analysis.estimate_counts_from_profile
+stripe_profile_from_screenshot = _analysis.stripe_profile_from_screenshot
+
+# --------------------------- Overlay Widget ----------------------------
 
 
 class OverlayWidget(QtWidgets.QWidget):
+    """Position the sampling line and expose interactive handles."""
+
     lineChanged = QtCore.Signal()
     requestAnalyze = QtCore.Signal()
 
     def __init__(self, virtual_rect: QtCore.QRect, cfg: AppConfig) -> None:
+        """Initialise the overlay with the saved geometry and options."""
         super().__init__(
             None,
-            QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Tool,
+            QtCore.Qt.WindowType.FramelessWindowHint
+            | QtCore.Qt.WindowType.Tool,
         )
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(
+            QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True
+        )
         self.setWindowFlag(
             QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top
         )
@@ -77,45 +83,54 @@ class OverlayWidget(QtWidgets.QWidget):
         self._auto_timer.setSingleShot(True)
         self._auto_timer.timeout.connect(self.requestAnalyze)
 
-    # ----------------------------- Properties ---------------------------------
+    # ---------------------------- Properties -----------------------------
 
     @property
     def p1(self) -> QtCore.QPointF:
+        """Return the starting overlay handle."""
         return self._p1
 
     @property
     def p2(self) -> QtCore.QPointF:
+        """Return the ending overlay handle."""
         return self._p2
 
     def set_tick_count(self, n: int) -> None:
+        """Update the manual marker count."""
         self._tick_count = max(1, int(n))
         self.update()
 
     def set_stripe_width(self, w: int, auto_analyze: bool = False) -> None:
+        """Change the sampling stripe width and optionally trigger analysis."""
         self._stripe_width = max(2, int(w))
         self.update()
         if auto_analyze and self._auto_enabled:
             self._auto_timer.start()
 
     def set_line_thickness(self, t: int) -> None:
+        """Adjust the overlay line thickness."""
         self._line_thickness = max(1, int(t))
         self.update()
 
     def set_tick_length(self, t: int) -> None:
+        """Adjust the overlay tick length."""
         self._tick_length = max(2, int(t))
         self.update()
 
     def set_auto_analyze(self, enabled: bool) -> None:
+        """Enable or disable auto-analysis."""
         self._auto_enabled = bool(enabled)
 
     def line_length(self) -> float:
+        """Return the overlay line length in pixels."""
         return float(QtCore.QLineF(self._p1, self._p2).length())
 
     def stripe_width(self) -> int:
+        """Return the current sampling stripe width."""
         return int(self._stripe_width)
 
     def stripe_bbox_virtual(self, margin: int = 4) -> QtCore.QRect:
-        """Bounding box in the virtual desktop coordinate system."""
+        """Return the bounding box in the virtual desktop coordinate system."""
         x1, y1 = self._p1.x(), self._p1.y()
         x2, y2 = self._p2.x(), self._p2.y()
         half = self._stripe_width / 2.0 + margin
@@ -125,7 +140,7 @@ class OverlayWidget(QtWidgets.QWidget):
         bottom = math.ceil(max(y1, y2) + half)
         return QtCore.QRect(left, top, right - left, bottom - top)
 
-    # ----------------------------- Interaction --------------------------------
+    # --------------------------- Interaction ----------------------------
 
     def _ctrl_down(self) -> bool:
         mods = QtWidgets.QApplication.keyboardModifiers()
@@ -158,6 +173,7 @@ class OverlayWidget(QtWidgets.QWidget):
         return QtCore.QPointF(newx, newy)
 
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
+        """Start dragging overlay handles when the mouse is pressed."""
         pos = e.position()
         if self._near(self._p1, pos, 12):
             self._drag_target = "p1"
@@ -171,6 +187,7 @@ class OverlayWidget(QtWidgets.QWidget):
         e.accept()
 
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
+        """Update overlay geometry while dragging."""
         pos = e.position()
         if self._drag_target == "p1":
             newp = self._clamp_point(pos)
@@ -199,12 +216,14 @@ class OverlayWidget(QtWidgets.QWidget):
                 self.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
+        """Finish dragging and emit the final geometry."""
         self._drag_target = None
         e.accept()
         if self._auto_enabled:
             self._auto_timer.start()
 
     def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+        """Handle shortcuts for adjusting overlay settings."""
         key = e.key()
         if key in (QtCore.Qt.Key.Key_Plus, QtCore.Qt.Key.Key_Equal):
             self.set_tick_count(self._tick_count + 1)
@@ -215,13 +234,16 @@ class OverlayWidget(QtWidgets.QWidget):
         elif key == QtCore.Qt.Key.Key_W:
             self.set_stripe_width(self._stripe_width + 1, auto_analyze=True)
         elif key == QtCore.Qt.Key.Key_Q:
-            self.set_stripe_width(max(2, self._stripe_width - 1), auto_analyze=True)
+            self.set_stripe_width(
+                max(2, self._stripe_width - 1), auto_analyze=True
+            )
         elif key == QtCore.Qt.Key.Key_Escape:
             self.close()
 
-    # ----------------------------- Painting -----------------------------------
+    # ---------------------------- Painting ------------------------------
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
+        """Render the overlay line, stripe, and interaction handles."""
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
         painter.fillRect(self.rect(), QtGui.QColor(0, 0, 0, 0))
@@ -237,10 +259,18 @@ class OverlayWidget(QtWidgets.QWidget):
         ny = dx / L
         half_w = self._stripe_width / 2.0
 
-        p1_top = QtCore.QPointF(self._p1.x() + nx * half_w, self._p1.y() + ny * half_w)
-        p1_bot = QtCore.QPointF(self._p1.x() - nx * half_w, self._p1.y() - ny * half_w)
-        p2_top = QtCore.QPointF(self._p2.x() + nx * half_w, self._p2.y() + ny * half_w)
-        p2_bot = QtCore.QPointF(self._p2.x() - nx * half_w, self._p2.y() - ny * half_w)
+        p1_top = QtCore.QPointF(
+            self._p1.x() + nx * half_w, self._p1.y() + ny * half_w
+        )
+        p1_bot = QtCore.QPointF(
+            self._p1.x() - nx * half_w, self._p1.y() - ny * half_w
+        )
+        p2_top = QtCore.QPointF(
+            self._p2.x() + nx * half_w, self._p2.y() + ny * half_w
+        )
+        p2_bot = QtCore.QPointF(
+            self._p2.x() - nx * half_w, self._p2.y() - ny * half_w
+        )
 
         poly = QtGui.QPolygonF([p1_top, p2_top, p2_bot, p1_bot])
 
@@ -271,7 +301,9 @@ class OverlayWidget(QtWidgets.QWidget):
                     y1 = py - ny * (self._tick_length / 2.0)
                     x2 = px + nx * (self._tick_length / 2.0)
                     y2 = py + ny * (self._tick_length / 2.0)
-                    painter.drawLine(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
+                    painter.drawLine(
+                        QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2)
+                    )
             else:
                 # m == 1: draw single tick at the start endpoint
                 px = self._p1.x()
@@ -280,7 +312,10 @@ class OverlayWidget(QtWidgets.QWidget):
                 y1 = py - ny * (self._tick_length / 2.0)
                 x2 = px + nx * (self._tick_length / 2.0)
                 y2 = py + ny * (self._tick_length / 2.0)
-                painter.drawLine(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
+                painter.drawLine(
+                    QtCore.QPointF(x1, y1),
+                    QtCore.QPointF(x2, y2),
+                )
 
         # End dots
         dot_brush = QtGui.QBrush(QtGui.QColor(255, 255, 255, 240))
@@ -292,9 +327,8 @@ class OverlayWidget(QtWidgets.QWidget):
         painter.drawEllipse(self._p1, r, r)
         painter.drawEllipse(self._p2, r, r)
 
-        # HUD: position along the outward normal above the stripe to avoid overlap
-        # Anchor at segment midpoint, offset outward by
-        # (half stripe + tick length + margin)
+        # HUD: offset along the outward normal to avoid overlapping the stripe.
+        # Offset from the midpoint by half stripe, tick length, and margin.
         margin = 18.0
         off = half_w + float(self._tick_length) + margin
         midx = (self._p1.x() + self._p2.x()) / 2.0
@@ -309,19 +343,32 @@ class OverlayWidget(QtWidgets.QWidget):
         )
 
         hud = (
-            f"W={int(self._stripe_width)} px  |  L={int(L)} px  |  N={self._tick_count}"
+            f"W={int(self._stripe_width)} px  |  "
+            f"L={int(L)} px  |  N={self._tick_count}"
         )
         painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 180)))
         painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 255, 200)))
         painter.drawRoundedRect(hud_rect, 6, 6)
         painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 255)))
-        painter.drawText(hud_rect, QtCore.Qt.AlignmentFlag.AlignCenter, hud)
+        painter.drawText(
+            hud_rect,
+            QtCore.Qt.AlignmentFlag.AlignCenter,
+            hud,
+        )
 
-    # --------------------------- Geometry helpers ------------------------------
+    # -------------------------- Geometry helpers ---------------------------
 
     def _clamp_point(self, p: QtCore.QPointF) -> QtCore.QPointF:
-        x = clamp(p.x(), float(self.rect().left() + 2), float(self.rect().right() - 2))
-        y = clamp(p.y(), float(self.rect().top() + 2), float(self.rect().bottom() - 2))
+        x = clamp(
+            p.x(),
+            float(self.rect().left() + 2),
+            float(self.rect().right() - 2),
+        )
+        y = clamp(
+            p.y(),
+            float(self.rect().top() + 2),
+            float(self.rect().bottom() - 2),
+        )
         return QtCore.QPointF(x, y)
 
     @staticmethod
@@ -346,13 +393,14 @@ class OverlayWidget(QtWidgets.QWidget):
         return d2 <= float(tol * tol)
 
 
-# ------------------------------- Profile Plot ---------------------------------
+# ---------------------------- Profile Plot -----------------------------
 
 
 class ProfilePlot(QtWidgets.QWidget):
-    """Simple QWidget to render the latest stripe profile and its markers."""
+    """Render the latest stripe profile and its markers."""
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        """Create the plot widget with sensible defaults."""
         super().__init__(parent)
         self._profile = np.empty((0,), dtype=np.float64)
         self._markers = 0
@@ -363,6 +411,7 @@ class ProfilePlot(QtWidgets.QWidget):
         )
 
     def set_profile(self, profile: Optional[np.ndarray]) -> None:
+        """Update the plotted stripe profile."""
         if profile is None or getattr(profile, "size", 0) == 0:
             self._profile = np.empty((0,), dtype=np.float64)
         else:
@@ -370,10 +419,12 @@ class ProfilePlot(QtWidgets.QWidget):
         self.update()
 
     def set_markers(self, n: int) -> None:
+        """Update the number of marker lines to display."""
         self._markers = max(0, int(n))
         self.update()
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
+        """Draw the waveform and any markers."""
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
 
@@ -388,7 +439,7 @@ class ProfilePlot(QtWidgets.QWidget):
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignmentFlag.AlignCenter,
-                "No profile yet.\nPress ‘Analyze Now’ to capture stripe profile.",
+                "No profile yet.\nPress ‘Analyze Now’ to capture a stripe.",
             )
             return
 
@@ -441,25 +492,32 @@ class ProfilePlot(QtWidgets.QWidget):
                 for i in range(m):
                     t = i / float(m - 1)
                     x = left + t * (w - 1.0)
-                    painter.drawLine(QtCore.QPointF(x, top), QtCore.QPointF(x, bottom))
+                    painter.drawLine(
+                        QtCore.QPointF(x, top), QtCore.QPointF(x, bottom)
+                    )
             else:
                 x = left  # single marker at start
-                painter.drawLine(QtCore.QPointF(x, top), QtCore.QPointF(x, bottom))
+                painter.drawLine(
+                    QtCore.QPointF(x, top), QtCore.QPointF(x, bottom)
+                )
 
         # Axes labels (minimal)
         painter.setPen(QtGui.QPen(QtGui.QColor(80, 80, 80)))
         text = f"Length: {N} px   min={p_min:.1f}  max={p_max:.1f}"
         painter.drawText(
             self.rect().adjusted(12, 12, -12, -12),
-            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
+            QtCore.Qt.AlignmentFlag.AlignTop
+            | QtCore.Qt.AlignmentFlag.AlignLeft,
             text,
         )
 
 
-# ---------------------------- Control Dialog UI -------------------------------
+# ------------------------- Control Dialog UI ---------------------------
 
 
 class ControlDialog(QtWidgets.QDialog):
+    """Provide analysis controls and feedback in a dialog."""
+
     analyzeRequested = QtCore.Signal()
     manualCountChanged = QtCore.Signal(int)
     stripeWidthChanged = QtCore.Signal(int)
@@ -470,6 +528,7 @@ class ControlDialog(QtWidgets.QDialog):
     suggestionChosen = QtCore.Signal(int)
 
     def __init__(self, cfg: AppConfig, app_version: str) -> None:
+        """Build the dialog widgets and wire their signals."""
         super().__init__(None)
         self._app_version = app_version or "unknown"
         self.setWindowTitle(
@@ -482,8 +541,12 @@ class ControlDialog(QtWidgets.QDialog):
 
         # Widgets
         self.suggest_combo = QtWidgets.QComboBox()
-        self.suggest_combo.setToolTip("Estimated counts from the signal analysis")
-        self.suggest_combo.currentIndexChanged.connect(self._on_suggestion_index)
+        self.suggest_combo.setToolTip(
+            "Estimated counts from the signal analysis"
+        )
+        self.suggest_combo.currentIndexChanged.connect(
+            self._on_suggestion_index
+        )
 
         self.manual_spin = QtWidgets.QSpinBox()
         self.manual_spin.setRange(1, 10000)
@@ -533,7 +596,9 @@ class ControlDialog(QtWidgets.QDialog):
         controls_form.addRow("Estimated numbers:", self.suggest_combo)
         controls_form.addRow("Manual number of items:", self.manual_spin)
         controls_form.addRow(self.analyze_btn)  # spans both columns
-        controls_form.addRow("Auto‑analyze:", self.auto_check)  # aligned checkbox row
+        controls_form.addRow(
+            "Auto‑analyze:", self.auto_check
+        )  # aligned checkbox row
         controls_form.addRow("Stripe width (px):", self.width_spin)
         controls_form.addRow("Line thickness:", self.thick_spin)
         controls_form.addRow("Tick length (px):", self.ticklen_spin)
@@ -572,29 +637,31 @@ class ControlDialog(QtWidgets.QDialog):
         help_layout.addWidget(help_text)
         help_layout.addStretch(1)
         help_page.setWidget(help_body)
-        self.tabs.addTab(help_page, "Help")
+        self.tabs.addTab(
+            help_page,
+            "Help",
+        )
 
         # Dialog layout
         v = QtWidgets.QVBoxLayout(self)
         v.addWidget(self.tabs)
         self.tabs.setCurrentIndex(0)  # Controls by default
 
-    # --- helpers ---
+    # --- Helpers ---
     def _help_markdown(self) -> str:
         return (
             f"<h3>how_many {self._app_version} — quick reference</h3>"
-            f"<p style='color:#666;margin:0 0 12px 0;'>Version {self._app_version}</p>"
+            "<p style='color:#666;margin:0 0 12px 0;'>Version "
+            f"{self._app_version}</p>"
             "<ul>"
             "<li><b>Position</b> the two dots across the repeating row.</li>"
-            "<li>Adjust <b>Stripe width</b> so the blue rectangle covers the "
-            "features.</li>"
+            "<li>Adjust <b>Stripe width</b> to cover the features.</li>"
             "<li>Click <b>Analyze Now</b> (or press <b>A</b>) to compute "
             "candidates.</li>"
-            "<li>Use <b>Estimated numbers</b> or the <b>Manual</b> spinner to pick "
-            "the count.</li>"
+            "<li>Pick a count via Estimated numbers or the "
+            "Manual spinner.</li>"
             "<li>Markers always <b>include endpoints</b>.</li>"
-            "<li>Hold <b>Ctrl</b> while dragging an endpoint to snap to "
-            "0°/45°/90°/135°.</li>"
+            "<li>Hold <b>Ctrl</b> to snap endpoints to 0°/45°/90°/135°.</li>"
             "</ul>"
             "<h4>Shortcuts</h4>"
             "<ul>"
@@ -606,14 +673,19 @@ class ControlDialog(QtWidgets.QDialog):
         )
 
     def set_status(self, text: str) -> None:
+        """Update the status text shown beneath the controls."""
         self.status_label.setText(text)
 
     def set_suggestions(self, suggestions: List[Suggestion]) -> None:
+        """Populate the suggestion combo box and emit the first result."""
         self.suggest_combo.blockSignals(True)
         self.suggest_combo.clear()
         for s in suggestions:
             self.suggest_combo.addItem(
-                f"{s.count} items  ∘  confidence {s.confidence:.2f}  [{s.source}]",
+                (
+                    f"{s.count} items  ∘  confidence {s.confidence:.2f}  "
+                    f"[{s.source}]"
+                ),
                 userData=s.count,
             )
         self.suggest_combo.blockSignals(False)
@@ -629,25 +701,31 @@ class ControlDialog(QtWidgets.QDialog):
     def _on_width_change(self, val: int) -> None:
         self.stripeWidthChanged.emit(val)
 
-    # --- profile helpers ---
+    # --- Profile helpers ---
     def set_profile(self, profile: Optional[np.ndarray]) -> None:
+        """Forward profile data to the embedded plot."""
         if hasattr(self, "profile_plot"):
             self.profile_plot.set_profile(profile)
 
     def set_results_text(self, text: str) -> None:
+        """Display textual analysis details in the results pane."""
         if hasattr(self, "results_label"):
             self.results_label.setPlainText(text or "")
 
     def set_markers(self, n: int) -> None:
+        """Update the number of visual markers in the plot view."""
         if hasattr(self, "profile_plot"):
             self.profile_plot.set_markers(n)
 
 
-# ---------------------------- Main Controller ---------------------------------
+# --------------------------- Main Controller ----------------------------
 
 
 class MainController(QtCore.QObject):
+    """Coordinate the overlay widget, control dialog, and analysis logic."""
+
     def __init__(self, app: QtWidgets.QApplication) -> None:
+        """Initialise the controller, configuration, and windows."""
         super().__init__(None)
         self.app = app
         self.cfg = self._load_config()
@@ -674,7 +752,9 @@ class MainController(QtCore.QObject):
         # Wire signals
         self.ctrl.analyzeRequested.connect(self.analyze)
         self.ctrl.manualCountChanged.connect(self.overlay.set_tick_count)
-        self.ctrl.manualCountChanged.connect(lambda n: self.ctrl.set_markers(int(n)))
+        self.ctrl.manualCountChanged.connect(
+            lambda n: self.ctrl.set_markers(int(n))
+        )
         self.ctrl.stripeWidthChanged.connect(
             lambda v: self.overlay.set_stripe_width(
                 v, auto_analyze=self.cfg.params.auto_analyze
@@ -707,7 +787,7 @@ class MainController(QtCore.QObject):
         if self._selftest_active:
             self._selftest_setup()
             QtCore.QTimer.singleShot(250, self._selftest_drive)
-            # Failsafe so the executable eventually exits even if the key event fails.
+            # Failsafe to exit if the analyze shortcut never fires.
             QtCore.QTimer.singleShot(5000, self._selftest_timeout)
 
     def _selftest_drive(self) -> None:
@@ -798,7 +878,7 @@ class MainController(QtCore.QObject):
             detail="Self-test timeout waiting for analyze shortcut.",
         )
 
-    # ---------------------------- Config I/O ----------------------------------
+    # ---------------------------- Config I/O ------------------------------
 
     def _config_path(self) -> Path:
         home = Path.home()
@@ -820,10 +900,10 @@ class MainController(QtCore.QObject):
         except Exception:
             pass
 
-    # ---------------------------- Event Handlers ------------------------------
+    # --------------------------- Event Handlers ----------------------------
 
     def _on_line_changed(self) -> None:
-        # No-op by default. Auto-analysis happens only via overlay's timer when enabled.
+        # No-op; auto-analysis occurs via the overlay timer when enabled.
         pass
 
     def _on_auto_toggle(self, enabled: bool) -> None:
@@ -833,8 +913,12 @@ class MainController(QtCore.QObject):
 
     def _on_topmost_toggle(self, enabled: bool) -> None:
         self.cfg.ui.always_on_top = bool(enabled)
-        self.overlay.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
-        self.ctrl.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
+        self.overlay.setWindowFlag(
+            QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled
+        )
+        self.ctrl.setWindowFlag(
+            QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled
+        )
         self.overlay.show()
         self.ctrl.show()
         self._save_config()
@@ -846,10 +930,10 @@ class MainController(QtCore.QObject):
         self.overlay.set_tick_count(int(count))
         self.ctrl.set_markers(int(count))
 
-    # ----------------------------- Core Actions --------------------------------
+    # ---------------------------- Core Actions -----------------------------
 
     def analyze(self) -> None:
-        """Capture stripe under the overlay line, estimate counts, update UI."""
+        """Capture the stripe, estimate counts, and update the UI."""
         if self._selftest_active and not self._selftest_triggered:
             self._selftest_triggered = True
             self._selftest_append_marker("analyze-called\n")
@@ -858,7 +942,10 @@ class MainController(QtCore.QObject):
         L = self.overlay.line_length()
         if L < self.cfg.params.min_length_px:
             self.ctrl.set_status(
-                f"Line too short for analysis (< {self.cfg.params.min_length_px} px)."
+                (
+                    f"Line too short (< {self.cfg.params.min_length_px} px) "
+                    "for analysis."
+                )
             )
             return
 
@@ -868,7 +955,9 @@ class MainController(QtCore.QObject):
         self.overlay.setVisible(False)
         self.ctrl.setVisible(False)
         self.app.processEvents()
-        QtCore.QThread.msleep(int(max(0, self.cfg.params.hide_during_capture_ms)))
+        QtCore.QThread.msleep(
+            int(max(0, self.cfg.params.hide_during_capture_ms))
+        )
 
         # Grab desktop
         full_bgr = self._capture_virtual_desktop_bgr()
@@ -894,7 +983,9 @@ class MainController(QtCore.QObject):
             self.ctrl.set_status("Stripe region is out of bounds.")
             return
 
-        roi = full_bgr[int(y0) : int(y0 + h), int(x0) : int(x0 + w), :]
+        y_slice = slice(int(y0), int(y0 + h))
+        x_slice = slice(int(x0), int(x0 + w))
+        roi = full_bgr[y_slice, x_slice, :]
 
         # Map p1/p2 to ROI-local coords
         p1_v = self.overlay.p1
@@ -925,8 +1016,7 @@ class MainController(QtCore.QObject):
         )
         if not suggestions:
             self.ctrl.set_status(
-                "No strong periodicity found. Try adjusting stripe width or line "
-                "position."
+                "No periodicity found. Adjust stripe width or line."
             )
             # Still show profile so user can see signal
             self.ctrl.set_profile(profile)
@@ -937,7 +1027,9 @@ class MainController(QtCore.QObject):
         self.ctrl.set_profile(profile)
         lines = ["Candidates (items, confidence, source):"]
         for s in suggestions:
-            lines.append(f"  • {s.count:>4}    {s.confidence:0.3f}    {s.source}")
+            lines.append(
+                f"  • {s.count:>4}    {s.confidence:0.3f}    {s.source}"
+            )
         self.ctrl.set_results_text("\n".join(lines))
 
         self.ctrl.set_suggestions(suggestions)
@@ -945,10 +1037,13 @@ class MainController(QtCore.QObject):
         self.overlay.set_tick_count(int(best.count))
         self.ctrl.set_markers(int(best.count))
         self.ctrl.set_status(
-            f"Best estimate: {best.count} items (confidence {best.confidence:.2f})."
+            (
+                f"Best estimate: {best.count} items "
+                f"(confidence {best.confidence:.2f})."
+            )
         )
 
-    # ----------------------------- System utils --------------------------------
+    # ---------------------------- System utils -----------------------------
 
     def _capture_virtual_desktop_bgr(self) -> Optional[np.ndarray]:
         """Capture the virtual desktop as BGR with a platform-aware fallback.
@@ -1010,10 +1105,11 @@ class MainController(QtCore.QObject):
         return rect
 
 
-# ---------------------------------- Main --------------------------------------
+# --------------------------------- Main ---------------------------------
 
 
 def main() -> None:
+    """Launch the Qt application and persist configuration on exit."""
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("how_many")
     app.setApplicationVersion(APP_VERSION)

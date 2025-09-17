@@ -28,8 +28,7 @@ def _rank_and_cap(
 def estimate_counts_from_profile(
     profile: np.ndarray, max_candidates: int = 5
 ) -> List[Suggestion]:
-    """Estimate the number of items (endpoints included) along the stripe profile."""
-
+    """Estimate item counts along the sampled stripe profile."""
     N = int(profile.size)
     if N < 16:
         return []
@@ -62,7 +61,8 @@ def estimate_counts_from_profile(
     fft_mag[0] = 0.0  # ignore DC
 
     spectral = fft_mag.copy()
-    spectral[0] = 0.0  # ignore DC but keep the first harmonic for short stripes
+    spectral[0] = 0.0
+    # Ignore DC but keep the first harmonic for short stripes.
 
     spec_max = float(np.max(spectral)) if np.max(spectral) > 0 else 0.0
     if spec_max > 0:
@@ -71,7 +71,9 @@ def estimate_counts_from_profile(
 
         if peaks.size > 0:
             for k in peaks:
-                cycles = int(k)  # DFT bin index ~ cycles across the sampled window
+                cycles = int(
+                    k
+                )  # DFT bin index ~ cycles across the sampled window
                 conf = float(spectral[k] / spec_max)
                 add_items(cycles, conf, "fft-peak")
 
@@ -91,7 +93,8 @@ def estimate_counts_from_profile(
     # ---------------- ACF ----------------
     p0 = p - float(np.mean(p))
     acf_full = np.correlate(p0, p0, mode="full")
-    acf = acf_full[N - 1 :]  # lags 0..N-1
+    start = N - 1
+    acf = acf_full[start:]  # lags 0..N-1
     if acf[0] != 0:
         acf = acf / float(acf[0])
     acf[:2] = 0.0  # ignore lag 0/1

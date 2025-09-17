@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass, field
+import json
 from typing import Dict
 
 
@@ -46,19 +46,22 @@ class AppConfig:
     ui: UIState = field(default_factory=UIState)
 
     def to_json(self) -> str:
+        """Serialise the configuration to a JSON string."""
         return json.dumps(asdict(self), indent=2)
 
     @staticmethod
     def from_json(text: str) -> "AppConfig":
+        """Build an :class:`AppConfig` from a JSON string."""
         data: Dict = json.loads(text)
         p = data.get("params", {})
         u = data.get("ui", {})
+        hide_ms = int(p.get("hide_during_capture_ms", 40))
         return AppConfig(
             params=AnalysisParams(
                 stripe_width_px=int(p.get("stripe_width_px", 20)),
                 blur_sigma_px=float(p.get("blur_sigma_px", 0.0)),
                 auto_analyze=bool(p.get("auto_analyze", False)),
-                hide_during_capture_ms=int(p.get("hide_during_capture_ms", 40)),
+                hide_during_capture_ms=hide_ms,
                 suggest_max=int(p.get("suggest_max", 5)),
                 min_length_px=int(p.get("min_length_px", 48)),
             ),

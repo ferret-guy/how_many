@@ -49,7 +49,6 @@ CHECKS: Tuple[StyleCheck, ...] = (
 )
 def test_code_style(name: str, command: Command) -> None:
     """Run ``name`` and ensure it reports no violations."""
-
     result = subprocess.run(
         command,
         cwd=REPO_ROOT,

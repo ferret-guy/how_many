@@ -10,8 +10,8 @@ behavioural parity within the how_many project.
 """
 
 import math
-import warnings
 from typing import Literal
+import warnings
 
 import numpy as np
 
@@ -19,16 +19,14 @@ SCIPY_REFERENCE_VERSION = "1.15.3"
 
 
 class PeakPropertyWarning(RuntimeWarning):
-    """
-    Warning class for unexpected property values of a peak.
-    """
+    """Warn about inconsistent peak property values."""
 
     pass
 
 
 def _local_maxima_1d(x):
-    """
-    Find local maxima in a 1D array.
+    """Find local maxima in a 1D array.
+
     This is a pure Python implementation of the logic from the Cython original.
     """
     midpoints = np.empty(x.shape[0] // 2, dtype=np.intp)
@@ -53,8 +51,8 @@ def _local_maxima_1d(x):
 
 
 def _select_by_peak_distance(peaks, priority, distance):
-    """
-    Select peaks based on a minimal distance condition.
+    """Select peaks that respect the minimum distance constraint.
+
     This is a pure Python implementation of the logic from the Cython original.
     """
     peaks_size = peaks.shape[0]
@@ -80,8 +78,8 @@ def _select_by_peak_distance(peaks, priority, distance):
 
 
 def _peak_prominences(x, peaks, wlen):
-    """
-    Calculate the prominence of each peak.
+    """Compute peak prominences for a sampled signal.
+
     This is a pure Python implementation of the logic from the Cython original.
     """
     show_warning = False
@@ -129,8 +127,8 @@ def _peak_prominences(x, peaks, wlen):
 
 
 def _peak_widths(x, peaks, rel_height, prominences, left_bases, right_bases):
-    """
-    Calculate the width of each peak.
+    """Measure the widths of peaks at the requested relative height.
+
     This is a pure Python implementation of the logic from the Cython original.
     """
     if rel_height < 0:
@@ -179,6 +177,7 @@ def _peak_widths(x, peaks, rel_height, prominences, left_bases, right_bases):
 
 
 def _arg_x_as_expected(value):
+    """Validate the input signal as a 1-D float array."""
     value = np.asarray(value, order="C", dtype=np.float64)
     if value.ndim != 1:
         raise ValueError("`x` must be a 1-D array")
@@ -186,11 +185,14 @@ def _arg_x_as_expected(value):
 
 
 def _arg_wlen_as_expected(value):
+    """Convert ``wlen`` to the SciPy-compatible sentinel form."""
     if value is None:
         value = -1
     elif 1 < value:
         value = (
-            np.intp(math.ceil(value)) if isinstance(value, float) else np.intp(value)
+            np.intp(math.ceil(value))
+            if isinstance(value, float)
+            else np.intp(value)
         )
     else:
         raise ValueError(f"`wlen` must be larger than 1, was {value}")
@@ -198,6 +200,7 @@ def _arg_wlen_as_expected(value):
 
 
 def _unpack_condition_args(interval, x, peaks):
+    """Normalise condition arguments to lower and upper bounds."""
     try:
         imin, imax = interval
     except (TypeError, ValueError):
@@ -215,6 +218,7 @@ def _unpack_condition_args(interval, x, peaks):
 
 
 def _select_by_property(peak_properties, pmin, pmax):
+    """Filter peaks based on lower and upper bound constraints."""
     keep = np.ones(peak_properties.size, dtype=bool)
     if pmin is not None:
         keep &= pmin <= peak_properties
@@ -224,6 +228,7 @@ def _select_by_property(peak_properties, pmin, pmax):
 
 
 def _select_by_peak_threshold(x, peaks, tmin, tmax):
+    """Evaluate peak threshold conditions for left and right neighbours."""
     if peaks.size == 0:
         return np.array([], dtype=bool), np.array([]), np.array([])
     if np.min(peaks) == 0 or np.max(peaks) >= len(x) - 1:
@@ -252,9 +257,9 @@ def find_peaks(
     rel_height=0.5,
     plateau_size=None,
 ):
-    """
-    Find peaks inside a signal based on peak properties.
-    This is a standalone version of scipy.signal.find_peaks.
+    """Find peaks inside a signal based on peak properties.
+
+    This is a standalone version of ``scipy.signal.find_peaks``.
     """
     x = _arg_x_as_expected(x)
     if distance is not None and distance < 1:
@@ -293,11 +298,9 @@ def find_peaks(
         keep, left_thresholds, right_thresholds = _select_by_peak_threshold(
             x, peaks, tmin, tmax
         )
-        peaks, properties["left_thresholds"], properties["right_thresholds"] = (
-            peaks[keep],
-            left_thresholds[keep],
-            right_thresholds[keep],
-        )
+        peaks = peaks[keep]
+        properties["left_thresholds"] = left_thresholds[keep]
+        properties["right_thresholds"] = right_thresholds[keep]
 
     if distance is not None:
         keep = _select_by_peak_distance(peaks, x[peaks], distance)
@@ -306,7 +309,9 @@ def find_peaks(
     # For the remaining peaks, calculate the more expensive properties
     if prominence is not None or width is not None:
         wlen = _arg_wlen_as_expected(wlen)
-        prominences, left_bases, right_bases = _peak_prominences(x, peaks, wlen=wlen)
+        prominences, left_bases, right_bases = _peak_prominences(
+            x, peaks, wlen=wlen
+        )
         properties.update(
             {
                 "prominences": prominences,
@@ -374,9 +379,9 @@ def detrend(
     bp=0,
     overwrite_data: bool = False,
 ) -> np.ndarray:
-    """
-    Remove linear or constant trend along axis from data.
-    This is a standalone version of scipy.signal.detrend that uses numpy.
+    """Remove linear or constant trends from the provided data.
+
+    This is a standalone version of ``scipy.signal.detrend`` that uses NumPy.
     """
     if type not in ["linear", "l", "constant", "c"]:
         raise ValueError("Trend type must be 'linear' or 'constant'.")

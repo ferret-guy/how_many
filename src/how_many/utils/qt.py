@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+from PySide6 import QtGui
 import cv2
 import numpy as np
-from PySide6 import QtGui
 
 
 def qpixmap_to_bgr(pix: QtGui.QPixmap) -> np.ndarray:
     """Convert a :class:`~PySide6.QtGui.QPixmap` into an OpenCV BGR array."""
-
     fmt = getattr(QtGui.QImage, "Format_RGBA8888", None)
     if fmt is None:
         fmt = QtGui.QImage.Format.Format_RGBA8888

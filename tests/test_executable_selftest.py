@@ -5,9 +5,9 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 import os
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 from typing import Iterable
 
 import pytest
@@ -15,7 +15,6 @@ import pytest
 
 def _library_available(candidates: Iterable[str]) -> bool:
     """Return True if any candidate library can be loaded via dlopen."""
-
     for candidate in candidates:
         try:
             ctypes.CDLL(candidate)
@@ -33,7 +32,6 @@ def _library_available(candidates: Iterable[str]) -> bool:
 
 def _missing_linux_packages() -> list[str]:
     """Identify required system packages that are absent on Linux."""
-
     required = {
         "libegl1": ("EGL", "libEGL.so.1"),
         "libgl1": ("GL", "libGL.so.1"),
@@ -50,22 +48,25 @@ def _missing_linux_packages() -> list[str]:
 
 def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
     """Ensure the packaged app triggers analyze during its self-test run."""
-
     project_root = Path(__file__).resolve().parents[1]
     build_script = project_root / "scripts" / "build_exe.py"
 
     if sys.platform.startswith("linux"):
         missing_packages = _missing_linux_packages()
         if missing_packages:
+            install_cmd = (
+                "sudo apt-get update && sudo apt-get install "
+                "libegl1 libgl1 libxkbcommon-x11-0"
+            )
             pytest.fail(
                 "Missing system packages required for Qt: "
                 + ", ".join(sorted(missing_packages))
-                + ". Install them with "
-                "`sudo apt-get update && sudo apt-get install libegl1 libgl1 "
-                "libxkbcommon-x11-0`."
+                + f". Install them with `{install_cmd}`."
             )
 
-    subprocess.run([sys.executable, str(build_script)], check=True, cwd=project_root)
+    subprocess.run(
+        [sys.executable, str(build_script)], check=True, cwd=project_root
+    )
 
     exe_name = "how_many.exe" if sys.platform.startswith("win") else "how_many"
     exe_path = project_root / "dist" / exe_name
@@ -85,7 +86,10 @@ def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
         if env.get("CI") or env.get("GITHUB_ACTIONS"):
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
     else:
-        env.setdefault("QT_QPA_PLATFORM", env.get("QT_QPA_PLATFORM", "windows"))
+        env.setdefault(
+            "QT_QPA_PLATFORM",
+            env.get("QT_QPA_PLATFORM", "windows"),
+        )
 
     try:
         completed = subprocess.run(
