@@ -88,6 +88,10 @@ def main() -> None:
     version_json.write_text(
         json.dumps({"version": version}, indent=4), encoding="utf-8"
     )
+    try:
+        os.chmod(version_json, 0o644)
+    except OSError:
+        pass
 
     data_sep = ";" if os.name == "nt" else ":"
 
@@ -101,7 +105,7 @@ def main() -> None:
         "--version-file",
         str(version_file),
         "--add-data",
-        f"{version_json}{data_sep}version.json",
+        f"{version_json}{data_sep}how_many{os.sep}version.json",
         str(ENTRY_POINT),
     ]
 
