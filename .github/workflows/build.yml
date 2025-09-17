@@ -26,6 +26,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync --group build --group test
 
+      - name: Ensure setuptools_scm for runtime
+        run: uv pip install "setuptools-scm[toml]>=8"
+
       - name: Run tests
         run: uv run pytest
 
