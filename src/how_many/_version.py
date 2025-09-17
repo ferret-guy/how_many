@@ -33,9 +33,7 @@ def get_version() -> str:
 	else:  # dev
 		import setuptools_scm  # type: ignore[import-untyped]
 
-		version = setuptools_scm.get_version(
-			root=Path(__file__).resolve().parent.parent
-		)
+		version = setuptools_scm.get_version()
 	return version
 
 
