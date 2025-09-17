@@ -26,6 +26,12 @@ jobs:
       - name: Sync dependencies
         run: uv sync --group build --group test
 
+      - name: Install Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0
+
       - name: Run tests
         run: uv run pytest
 
@@ -61,6 +67,12 @@ jobs:
 
       - name: Sync dependencies
         run: uv sync --group build
+
+      - name: Install Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0
 
       - name: Build executable with PyInstaller
         run: uv run python scripts/build_exe.py
