@@ -26,6 +26,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync --group build --group test
 
+      - name: Ensure setuptools_scm for runtime
+        run: uv pip install "setuptools-scm[toml]>=8"
+
       - name: Install Qt runtime libraries
         if: runner.os == 'Linux'
         run: |
@@ -42,13 +45,13 @@ jobs:
         include:
           - os: windows-latest
             artifact: how-many-windows
-            binary: dist/how_many.exe
+            binary: dist/how_many*.exe
           - os: macos-latest
             artifact: how-many-macos
-            binary: dist/how_many
+            binary: dist/how_many*
           - os: ubuntu-latest
             artifact: how-many-linux
-            binary: dist/how_many
+            binary: dist/how_many*
     runs-on: ${{ matrix.os }}
     env:
       UV_PYTHON: "3.11"
