@@ -1,7 +1,5 @@
 """Helpers for deriving stripe profiles directly from screenshot imagery."""
 
-from __future__ import annotations
-
 import math
 from typing import List, Tuple
 

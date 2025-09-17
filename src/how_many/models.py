@@ -1,7 +1,5 @@
 """Dataclasses describing configuration and analysis results for how_many."""
 
-from __future__ import annotations
-
 from dataclasses import asdict, dataclass, field
 import json
 from typing import Dict

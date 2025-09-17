@@ -1,7 +1,5 @@
 """Utilities for retrieving how_many version metadata."""
 
-from __future__ import annotations
-
 import json
 from os import PathLike
 from pathlib import Path

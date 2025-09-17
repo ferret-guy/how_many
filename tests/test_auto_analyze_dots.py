@@ -1,7 +1,5 @@
 """Regression tests for auto-analysis using the screenshot helpers."""
 
-from __future__ import annotations
-
 import math
 from typing import Tuple
 

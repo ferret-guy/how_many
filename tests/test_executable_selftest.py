@@ -1,7 +1,5 @@
 """End-to-end test for the packaged how_many executable."""
 
-from __future__ import annotations
-
 import ctypes
 import ctypes.util
 import os

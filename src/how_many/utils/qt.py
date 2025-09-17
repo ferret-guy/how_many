@@ -1,7 +1,5 @@
 """Qt helper utilities."""
 
-from __future__ import annotations
-
 from PySide6 import QtGui
 import numpy as np
 

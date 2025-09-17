@@ -1,7 +1,5 @@
 """Geometry helpers used throughout the UI and analysis layers."""
 
-from __future__ import annotations
-
 import math
 from typing import Tuple
 

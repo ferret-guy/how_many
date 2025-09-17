@@ -1,7 +1,5 @@
 """Ensure the repository meets the configured style and type expectations."""
 
-from __future__ import annotations
-
 import pathlib
 import subprocess
 import sys

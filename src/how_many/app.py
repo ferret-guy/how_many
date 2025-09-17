@@ -1,7 +1,5 @@
 """Qt application entry point for the how_many overlay tool."""
 
-from __future__ import annotations
-
 import math
 import os
 from pathlib import Path
