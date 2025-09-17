@@ -1,7 +1,5 @@
 """Build the how_many executable with PyInstaller."""
 
-from __future__ import annotations
-
 import json
 import os
 import re
@@ -10,6 +8,7 @@ import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from textwrap import dedent
+import setuptools_scm
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENTRY_POINT = BASE_DIR / "src/how_many/app.py"
@@ -19,7 +18,7 @@ _DIGITS = re.compile(r"\d+")
 _SAFE = re.compile(r"[^A-Za-z0-9.-]+")
 
 
-def _version_numbers(version: str) -> tuple[int, int, int, int]:
+def _version_numbers(version: str) -> tuple[int, ...]:
     numbers = [min(int(match), 65535) for match in _DIGITS.findall(version)[:4]]
     while len(numbers) < 4:
         numbers.append(0)
@@ -32,12 +31,7 @@ def _safe_version(version: str) -> str:
 
 
 def main() -> None:
-    try:
-        import setuptools_scm  # type: ignore[import-untyped]
-
-        version = str(setuptools_scm.get_version(root=BASE_DIR))
-    except Exception:  # pragma: no cover - setuptools_scm optional
-        version = "Unknown"
+    version = str(setuptools_scm.get_version(root=BASE_DIR))
 
     executable_name = f"{APP_NAME}-v{_safe_version(version)}"
     original_filename = f"{executable_name}.exe"
@@ -88,10 +82,6 @@ def main() -> None:
     version_json.write_text(
         json.dumps({"version": version}, indent=4), encoding="utf-8"
     )
-    try:
-        os.chmod(version_json, 0o644)
-    except OSError:
-        pass
 
     data_sep = ";" if os.name == "nt" else ":"
 
@@ -104,19 +94,13 @@ def main() -> None:
         "--clean",
         "--version-file",
         str(version_file),
-        "--add-data",
-        f"{version_json}{data_sep}how_many{os.sep}version.json",
+        f"--add-data={version_json}:.",
         str(ENTRY_POINT),
     ]
 
-    try:
-        sys.exit(subprocess.call(cmd))
-    finally:
-        try:
-            version_file.unlink()
-        except OSError:
-            pass
-        temp_dir.cleanup()
+    sys.exit(subprocess.call(cmd))
+    version_file.unlink()
+    temp_dir.cleanup()
 
 
 if __name__ == "__main__":

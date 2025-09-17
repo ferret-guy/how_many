@@ -21,55 +21,22 @@ def get_embedded_path(name: str | PathLike[str]) -> Path:
     return base / Path(name)
 
 
-def _load_version_from_blob(blob: bytes | str | None) -> str | None:
-    if not blob:
-        return None
-    try:
-        data = json.loads(blob if isinstance(blob, str) else blob.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    version = data.get("version") if isinstance(data, dict) else None
-    return str(version) if version is not None else None
-
-
-def _load_version_from_pkgutil() -> str | None:
-    try:
-        blob = pkgutil.get_data(PACKAGE_NAME, VERSION_FILENAME)
-    except (FileNotFoundError, OSError, ModuleNotFoundError):
-        return None
-    return _load_version_from_blob(blob)
-
-
-def _load_version_from_filesystem(paths: Iterable[Path]) -> str | None:
-    for candidate in paths:
-        try:
-            payload = candidate.read_bytes()
-        except (FileNotFoundError, PermissionError, OSError):
-            continue
-        version = _load_version_from_blob(payload)
-        if version is not None:
-            return version
-    return None
-
-
 def get_version() -> str:
-    """Get version for application."""
+	"""
+	Get version for application.
 
-    version = _load_version_from_pkgutil()
-    if version is None and getattr(sys, "frozen", False):
-        candidates = (
-            get_embedded_path(Path(PACKAGE_NAME) / VERSION_FILENAME),
-            get_embedded_path(VERSION_FILENAME),
-        )
-        version = _load_version_from_filesystem(candidates)
+	:return: Version number.
+	"""
+	if getattr(sys, "frozen", False):  # *.exe
+		with open(get_embedded_path("version.json"), "r") as f:
+			version = str(json.load(f)["version"])
+	else:  # dev
+		import setuptools_scm  # type: ignore[import-untyped]
 
-    if version is None:
-        import setuptools_scm  # type: ignore[import-untyped]
-
-        version = setuptools_scm.get_version(
-            root=Path(__file__).resolve().parent.parent.parent
-        )
-    return str(version)
+		version = setuptools_scm.get_version(
+			root=Path(__file__).resolve().parent.parent
+		)
+	return version
 
 
 __all__ = ["get_version", "get_embedded_path"]
