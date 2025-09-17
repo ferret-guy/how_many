@@ -311,7 +311,15 @@ def main() -> None:
         version = "0.0.0"
 
     version_file: Path | None = None
-    script_path = root / cfg.entry
+    script_path = (root / cfg.entry).resolve()
+    spec_script = script_path.as_posix()
+    spec_pathex = (root / "src").resolve().as_posix()
+    hooks_path = (root / "pyinstaller_hooks").resolve()
+
+    if hooks_path.exists():
+        hookspath_literal = "[" + repr(str(hooks_path)) + "]"
+    else:
+        hookspath_literal = "[]"
 
     qt_excludes = [
         "PySide6.QtCharts",
@@ -410,12 +418,12 @@ def main() -> None:
 
 
         a = Analysis(
-            ['{script_path}'],
-            pathex=['{root / "src"}'],
+            ['{spec_script}'],
+            pathex=['{spec_pathex}'],
             binaries=[],
             datas=[],
             hiddenimports=[],
-            hookspath=[],
+            hookspath={hookspath_literal},
             hooksconfig={{}},
             runtime_hooks=[],
             excludes={qt_excludes!r},
@@ -437,7 +445,7 @@ def main() -> None:
             name='{cfg.name}',
             debug=False,
             bootloader_ignore_signals=False,
-            strip=False,
+            strip=True,
             upx=True,
             upx_exclude=[],
             runtime_tmpdir=None,
@@ -459,7 +467,12 @@ def main() -> None:
         version_file = None
 
     version_literal = repr(str(version_file)) if version_file is not None else "None"
-    spec_text = spec_source.replace("{VERSION_FILE}", version_literal)
+    spec_text = (
+        spec_source.replace("{VERSION_FILE}", version_literal)
+        .replace("{spec_script}", spec_script)
+        .replace("{spec_pathex}", spec_pathex)
+        .replace("{hookspath_literal}", hookspath_literal)
+    )
 
     build_return = 1
     try:
