@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
+import math
 import os
+import sys
 import traceback
 from pathlib import Path
 from typing import Callable, List, Optional
 
-import math
-import sys
-
 import numpy as np
-from PySide6 import QtCore, QtGui, QtWidgets, QtTest
+from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 APP_VERSION: str
 
@@ -21,12 +20,11 @@ if __package__ in (None, ""):
         sys.path.insert(0, str(PACKAGE_ROOT))
 
     import how_many as _pkg
-
     from how_many.analysis import (
         estimate_counts_from_profile,
         stripe_profile_from_screenshot,
     )
-    from how_many.models import AppConfig, Suggestion, UIState
+    from how_many.models import AppConfig, Suggestion
     from how_many.utils import clamp
     from how_many.utils.qt import qpixmap_to_bgr
 
@@ -34,7 +32,7 @@ if __package__ in (None, ""):
 else:
     from . import __version__ as APP_VERSION
     from .analysis import estimate_counts_from_profile, stripe_profile_from_screenshot
-    from .models import AppConfig, Suggestion, UIState
+    from .models import AppConfig, Suggestion
     from .utils import clamp
     from .utils.qt import qpixmap_to_bgr
 
@@ -48,7 +46,8 @@ class OverlayWidget(QtWidgets.QWidget):
 
     def __init__(self, virtual_rect: QtCore.QRect, cfg: AppConfig) -> None:
         super().__init__(
-            None, QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Tool
+            None,
+            QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Tool,
         )
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setWindowFlag(
@@ -135,7 +134,7 @@ class OverlayWidget(QtWidgets.QWidget):
     def _snap_endpoint(
         self, target: QtCore.QPointF, anchor: QtCore.QPointF
     ) -> QtCore.QPointF:
-        """If Ctrl is held, snap the angle anchor->target to multiples of 45°; preserve length."""
+        """Snap to 45° increments when Ctrl is held while preserving length."""
         if not self._ctrl_down():
             return target
         dx = float(target.x() - anchor.x())
@@ -294,7 +293,8 @@ class OverlayWidget(QtWidgets.QWidget):
         painter.drawEllipse(self._p2, r, r)
 
         # HUD: position along the outward normal above the stripe to avoid overlap
-        # Anchor at segment midpoint, offset outward by (half stripe + tick length + margin)
+        # Anchor at segment midpoint, offset outward by
+        # (half stripe + tick length + margin)
         margin = 18.0
         off = half_w + float(self._tick_length) + margin
         midx = (self._p1.x() + self._p2.x()) / 2.0
@@ -350,7 +350,7 @@ class OverlayWidget(QtWidgets.QWidget):
 
 
 class ProfilePlot(QtWidgets.QWidget):
-    """Simple QWidget that draws the latest 1-D stripe profile and markers (endpoints included)."""
+    """Simple QWidget to render the latest stripe profile and its markers."""
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -400,7 +400,12 @@ class ProfilePlot(QtWidgets.QWidget):
         p_norm = (p - p_min) / rng
 
         N = p_norm.size
-        left, top, right, bottom = rect.left(), rect.top(), rect.right(), rect.bottom()
+        left, top, right, bottom = (
+            rect.left(),
+            rect.top(),
+            rect.right(),
+            rect.bottom(),
+        )
         w = max(1.0, float(right - left))
         h = max(1.0, float(bottom - top))
 
@@ -581,11 +586,15 @@ class ControlDialog(QtWidgets.QDialog):
             f"<p style='color:#666;margin:0 0 12px 0;'>Version {self._app_version}</p>"
             "<ul>"
             "<li><b>Position</b> the two dots across the repeating row.</li>"
-            "<li>Adjust <b>Stripe width</b> so the blue rectangle covers the features.</li>"
-            "<li>Click <b>Analyze Now</b> (or press <b>A</b>) to compute candidates.</li>"
-            "<li>Use <b>Estimated numbers</b> or the <b>Manual</b> spinner to pick the count.</li>"
+            "<li>Adjust <b>Stripe width</b> so the blue rectangle covers the "
+            "features.</li>"
+            "<li>Click <b>Analyze Now</b> (or press <b>A</b>) to compute "
+            "candidates.</li>"
+            "<li>Use <b>Estimated numbers</b> or the <b>Manual</b> spinner to pick "
+            "the count.</li>"
             "<li>Markers always <b>include endpoints</b>.</li>"
-            "<li>Hold <b>Ctrl</b> while dragging an endpoint to snap to 0°/45°/90°/135°.</li>"
+            "<li>Hold <b>Ctrl</b> while dragging an endpoint to snap to "
+            "0°/45°/90°/135°.</li>"
             "</ul>"
             "<h4>Shortcuts</h4>"
             "<ul>"
@@ -759,7 +768,9 @@ class MainController(QtCore.QObject):
         except OSError:
             pass
 
-    def _selftest_finish(self, *, success: bool, exit_code: int, detail: str = "") -> None:
+    def _selftest_finish(
+        self, *, success: bool, exit_code: int, detail: str = ""
+    ) -> None:
         if not self._selftest_active or self._selftest_exit_done:
             return
         self._selftest_exit_done = True
@@ -888,8 +899,14 @@ class MainController(QtCore.QObject):
         # Map p1/p2 to ROI-local coords
         p1_v = self.overlay.p1
         p2_v = self.overlay.p2
-        p1_local = (p1_v.x() - virt_rect.left() - x0, p1_v.y() - virt_rect.top() - y0)
-        p2_local = (p2_v.x() - virt_rect.left() - x0, p2_v.y() - virt_rect.top() - y0)
+        p1_local = (
+            p1_v.x() - virt_rect.left() - x0,
+            p1_v.y() - virt_rect.top() - y0,
+        )
+        p2_local = (
+            p2_v.x() - virt_rect.left() - x0,
+            p2_v.y() - virt_rect.top() - y0,
+        )
 
         try:
             profile = stripe_profile_from_screenshot(
@@ -908,7 +925,8 @@ class MainController(QtCore.QObject):
         )
         if not suggestions:
             self.ctrl.set_status(
-                "No strong periodicity found. Try adjusting stripe width or line position."
+                "No strong periodicity found. Try adjusting stripe width or line "
+                "position."
             )
             # Still show profile so user can see signal
             self.ctrl.set_profile(profile)

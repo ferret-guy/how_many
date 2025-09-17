@@ -1,9 +1,9 @@
 """Helpers for deriving stripe profiles directly from screenshot imagery."""
 
 from __future__ import annotations
-from typing import List, Tuple
 
 import math
+from typing import List, Tuple
 
 import numpy as np
 
@@ -14,7 +14,6 @@ except Exception:  # pragma: no cover - we intentionally support running without
 
 from ..models import Suggestion
 from .core import estimate_counts_from_profile
-
 
 Point = Tuple[float, float]
 
@@ -101,7 +100,9 @@ def _gaussian_blur_numpy(gray: np.ndarray, sigma: float) -> np.ndarray:
     kernel /= float(np.sum(kernel))
 
     def convolve_axis(data: np.ndarray, axis: int) -> np.ndarray:
-        return np.apply_along_axis(lambda m: np.convolve(m, kernel, mode="same"), axis, data)
+        return np.apply_along_axis(
+            lambda m: np.convolve(m, kernel, mode="same"), axis, data
+        )
 
     blurred = convolve_axis(gray, axis=0)
     blurred = convolve_axis(blurred, axis=1)
@@ -210,7 +211,9 @@ def stripe_profile_from_screenshot(
             ksize = max(3, int(2 * radius + 1))
             gray = cv2.GaussianBlur(gray, (ksize, ksize), float(blur_sigma_px))
         else:
-            gray = _gaussian_blur_numpy(gray.astype(np.float64, copy=False), float(blur_sigma_px))
+            gray = _gaussian_blur_numpy(
+                gray.astype(np.float64, copy=False), float(blur_sigma_px)
+            )
 
     profile = np.mean(gray, axis=0)
     return profile.astype(np.float64, copy=False)
@@ -234,9 +237,7 @@ def estimate_counts_from_screenshot(
         stripe_width_px,
         blur_sigma_px=blur_sigma_px,
     )
-    suggestions = estimate_counts_from_profile(
-        profile, max_candidates=max_candidates
-    )
+    suggestions = estimate_counts_from_profile(profile, max_candidates=max_candidates)
     return profile, suggestions
 
 

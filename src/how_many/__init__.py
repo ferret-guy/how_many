@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 __version__ = "1.0"
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checkers
-    from .app import main as _main_type
+    from .app import main as _main_type  # noqa: F401
 
 
 def main() -> None:

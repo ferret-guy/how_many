@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from typing import Dict
-
 import json
+from dataclasses import asdict, dataclass, field
+from typing import Dict
 
 
 @dataclass

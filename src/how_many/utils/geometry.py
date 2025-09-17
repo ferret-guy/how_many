@@ -6,7 +6,9 @@ import math
 from typing import Tuple
 
 
-def rotate_point(x: float, y: float, cx: float, cy: float, angle_deg: float) -> Tuple[float, float]:
+def rotate_point(
+    x: float, y: float, cx: float, cy: float, angle_deg: float
+) -> Tuple[float, float]:
     """Rotate a point around ``(cx, cy)`` by ``angle_deg`` degrees."""
 
     theta = math.radians(angle_deg)

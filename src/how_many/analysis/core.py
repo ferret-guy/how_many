@@ -8,7 +8,7 @@ import numpy as np
 
 from ..models import Suggestion
 from ..utils import clamp
-from .peaks_detrend import find_peaks, detrend
+from .peaks_detrend import detrend, find_peaks
 
 
 def _rank_and_cap(
@@ -52,7 +52,9 @@ def estimate_counts_from_profile(
         prev = suggestions.get(items)
         if (prev is None) or (conf > prev.confidence):
             suggestions[items] = Suggestion(
-                count=items, confidence=float(clamp(conf, 0.0, 1.0)), source=source
+                count=items,
+                confidence=float(clamp(conf, 0.0, 1.0)),
+                source=source,
             )
 
     # ---------------- FFT ----------------

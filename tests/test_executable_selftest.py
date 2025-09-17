@@ -49,7 +49,7 @@ def _missing_linux_packages() -> list[str]:
 
 
 def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
-    """Build the PyInstaller bundle and ensure the analyze shortcut fires in self-test mode."""
+    """Ensure the packaged app triggers analyze during its self-test run."""
 
     project_root = Path(__file__).resolve().parents[1]
     build_script = project_root / "scripts" / "build_exe.py"
@@ -61,14 +61,15 @@ def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
                 "Missing system packages required for Qt: "
                 + ", ".join(sorted(missing_packages))
                 + ". Install them with "
-                "`sudo apt-get update && sudo apt-get install libegl1 libgl1 libxkbcommon-x11-0`."
+                "`sudo apt-get update && sudo apt-get install libegl1 libgl1 "
+                "libxkbcommon-x11-0`."
             )
 
     subprocess.run([sys.executable, str(build_script)], check=True, cwd=project_root)
 
     exe_name = "how_many.exe" if sys.platform.startswith("win") else "how_many"
     exe_path = project_root / "dist" / exe_name
-    assert exe_path.exists(), f"Expected executable at {exe_path}" 
+    assert exe_path.exists(), f"Expected executable at {exe_path}"
 
     marker_path = tmp_path / "selftest-marker.txt"
 

@@ -11,8 +11,9 @@ behavioural parity within the how_many project.
 
 import math
 import warnings
-import numpy as np
 from typing import Literal
+
+import numpy as np
 
 SCIPY_REFERENCE_VERSION = "1.15.3"
 
@@ -274,7 +275,12 @@ def find_peaks(
             properties["plateau_sizes"],
             properties["left_edges"],
             properties["right_edges"],
-        ) = (peaks[keep], plateau_sizes[keep], left_edges[keep], right_edges[keep])
+        ) = (
+            peaks[keep],
+            plateau_sizes[keep],
+            left_edges[keep],
+            right_edges[keep],
+        )
 
     if height is not None:
         peak_heights = x[peaks]
@@ -414,7 +420,10 @@ def detrend(
         sl = slice(bp[m], bp[m + 1])
         # Create design matrix for linear fit
         A = np.vstack(
-            [np.arange(1, Npts + 1, dtype=dtype) / Npts, np.ones(Npts, dtype=dtype)]
+            [
+                np.arange(1, Npts + 1, dtype=dtype) / Npts,
+                np.ones(Npts, dtype=dtype),
+            ]
         ).T
 
         # Fit and subtract

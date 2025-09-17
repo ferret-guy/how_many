@@ -26,7 +26,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for Python 3.10
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from how_many.analysis import peaks_detrend as standalone
+from how_many.analysis import peaks_detrend as standalone  # noqa: E402
 
 EXPECTED_SCIPY_VERSION = standalone.SCIPY_REFERENCE_VERSION
 
@@ -46,14 +46,13 @@ def ensure_expected_scipy_version():
     with (ROOT / "pyproject.toml").open("rb") as fh:
         config = tomllib.load(fh)
     configured_version = (
-        config.get("tool", {})
-        .get("how-many", {})
-        .get("scipy-reference-version")
+        config.get("tool", {}).get("how-many", {}).get("scipy-reference-version")
     )
     if configured_version != EXPECTED_SCIPY_VERSION:
         pytest.fail(
             "pyproject.toml and peaks_detrend.SCIPY_REFERENCE_VERSION disagree. "
-            f"Configured {configured_version!r} versus constant {EXPECTED_SCIPY_VERSION!r}."
+            f"Configured {configured_version!r} versus constant "
+            f"{EXPECTED_SCIPY_VERSION!r}."
         )
     for resource in (PEAK_TEST_RESOURCE, DETREND_TEST_RESOURCE):
         if not resource.is_file():
@@ -61,9 +60,9 @@ def ensure_expected_scipy_version():
 
 
 def run_tests_from_copy(resource, test_class_name, tmp_path, test_id):
-    """
-    Copies a SciPy test file to a temporary directory with a unique name and runs pytest.
-    The unique name (via test_id) avoids Python module caching issues during repeated runs.
+    """Copy a SciPy test module to a temp path and execute it with pytest.
+
+    A unique filename (via ``test_id``) prevents module caching between runs.
     """
     dest_file = tmp_path / f"temp_{test_id}_{resource.name}"
     with resources.as_file(resource) as source_path:

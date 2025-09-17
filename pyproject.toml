@@ -18,6 +18,13 @@ test = [
     "scipy==1.15.3",
     "hypothesis>=6.100",
     "tomli>=2.0.1",
+    "black==24.10.0",
+    "flake8==6.1.0",
+    "flake8-docstrings==1.7.0",
+    "flake8-isort==6.1.2",
+    "flake8-noqa==1.4.0",
+    "isort==5.13.2",
+    "mypy==1.12.0",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +34,13 @@ dev = [
     "scipy==1.15.3",
     "hypothesis>=6.100",
     "tomli>=2.0.1",
+    "black==24.10.0",
+    "flake8==6.1.0",
+    "flake8-docstrings==1.7.0",
+    "flake8-isort==6.1.2",
+    "flake8-noqa==1.4.0",
+    "isort==5.13.2",
+    "mypy==1.12.0",
 ]
 
 [project.scripts]
@@ -44,3 +58,39 @@ where = ["src"]
 
 [tool.how-many]
 scipy-reference-version = "1.15.3"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_unreachable = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+implicit_reexport = true
+exclude = "venv|\\.venv|\\.tox|build|dist"
+
+[tool.flake8]
+max-line-length = 88
+# Exceptions from the default Flake8 rules:
+# - E203: required for compatibility with Black's slice formatting.
+# - E701: kept to allow Black's preferred compound-statement formatting in `if`
+#   statements used for guard clauses.
+# - D100-D107: most public classes, methods, and functions are exercised through
+#   GUI interactions, and requiring docstrings everywhere would add noise
+#   without improving clarity.
+# - D200, D202, D205: existing multi-line docstrings follow NumPy-style
+#   formatting that intentionally includes blank-line separation.
+# - D401: we allow narrative-style summaries when they better describe the
+#   behaviour of helper routines.
+extend-ignore = "E203,E701,D100,D101,D102,D103,D104,D105,D106,D107,D200,D202,D205,D401"
