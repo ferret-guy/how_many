@@ -64,9 +64,7 @@ def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
                 + f". Install them with `{install_cmd}`."
             )
 
-    subprocess.run(
-        [sys.executable, str(build_script)], check=True, cwd=project_root
-    )
+    subprocess.run([sys.executable, str(build_script)], check=True, cwd=project_root)
 
     exe_name = "how_many.exe" if sys.platform.startswith("win") else "how_many"
     exe_path = project_root / "dist" / exe_name

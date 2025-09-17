@@ -81,9 +81,7 @@ SNAP_ANGLES = [float(angle) for angle in range(0, 360, 45)]
 @pytest.mark.parametrize("angle_deg", SNAP_ANGLES)
 def test_estimate_counts_snap_angles(angle_deg: float) -> None:
     """Snap angles should confidently count ten evenly spaced dots."""
-    screenshot, p1, p2 = _synthetic_dot_screenshot(
-        num_dots=10, angle_deg=angle_deg
-    )
+    screenshot, p1, p2 = _synthetic_dot_screenshot(num_dots=10, angle_deg=angle_deg)
     profile, suggestions = estimate_counts_from_screenshot(
         screenshot,
         p1,
@@ -93,9 +91,7 @@ def test_estimate_counts_snap_angles(angle_deg: float) -> None:
     )
 
     assert profile.size >= 16
-    assert (
-        suggestions
-    ), "Auto-analysis returned no candidates for snap angle test."
+    assert suggestions, "Auto-analysis returned no candidates for snap angle test."
 
     best = suggestions[0]
     assert best.count == 10
@@ -123,9 +119,7 @@ def test_estimate_counts_random_angle(angle_deg: float, num_dots: int) -> None:
         max_candidates=6,
     )
 
-    assert (
-        suggestions
-    ), "Expected at least one candidate for generated dot pattern."
+    assert suggestions, "Expected at least one candidate for generated dot pattern."
 
     best = suggestions[0]
     assert best.count == num_dots
@@ -134,9 +128,7 @@ def test_estimate_counts_random_angle(angle_deg: float, num_dots: int) -> None:
 
 @given(angle_deg=angles, num_dots=dot_counts)
 @settings(deadline=None, max_examples=30)
-def test_estimate_counts_reverse_endpoints(
-    angle_deg: float, num_dots: int
-) -> None:
+def test_estimate_counts_reverse_endpoints(angle_deg: float, num_dots: int) -> None:
     """Reversing the endpoints should not change the recovered dot count."""
     screenshot, p1, p2 = _synthetic_dot_screenshot(
         num_dots=num_dots, angle_deg=angle_deg
@@ -157,12 +149,8 @@ def test_estimate_counts_reverse_endpoints(
         max_candidates=6,
     )
 
-    assert (
-        forward_suggestions
-    ), "Expected a candidate for the forward orientation."
-    assert (
-        reverse_suggestions
-    ), "Expected a candidate for the reversed orientation."
+    assert forward_suggestions, "Expected a candidate for the forward orientation."
+    assert reverse_suggestions, "Expected a candidate for the reversed orientation."
 
     assert forward_suggestions[0].count == num_dots
     best_reverse = reverse_suggestions[0]

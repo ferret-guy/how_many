@@ -50,12 +50,9 @@ class OverlayWidget(QtWidgets.QWidget):
         """Initialise the overlay with the saved geometry and options."""
         super().__init__(
             None,
-            QtCore.Qt.WindowType.FramelessWindowHint
-            | QtCore.Qt.WindowType.Tool,
+            QtCore.Qt.WindowType.FramelessWindowHint | QtCore.Qt.WindowType.Tool,
         )
-        self.setAttribute(
-            QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True
-        )
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setWindowFlag(
             QtCore.Qt.WindowType.WindowStaysOnTopHint, cfg.ui.always_on_top
         )
@@ -234,9 +231,7 @@ class OverlayWidget(QtWidgets.QWidget):
         elif key == QtCore.Qt.Key.Key_W:
             self.set_stripe_width(self._stripe_width + 1, auto_analyze=True)
         elif key == QtCore.Qt.Key.Key_Q:
-            self.set_stripe_width(
-                max(2, self._stripe_width - 1), auto_analyze=True
-            )
+            self.set_stripe_width(max(2, self._stripe_width - 1), auto_analyze=True)
         elif key == QtCore.Qt.Key.Key_Escape:
             self.close()
 
@@ -259,18 +254,10 @@ class OverlayWidget(QtWidgets.QWidget):
         ny = dx / L
         half_w = self._stripe_width / 2.0
 
-        p1_top = QtCore.QPointF(
-            self._p1.x() + nx * half_w, self._p1.y() + ny * half_w
-        )
-        p1_bot = QtCore.QPointF(
-            self._p1.x() - nx * half_w, self._p1.y() - ny * half_w
-        )
-        p2_top = QtCore.QPointF(
-            self._p2.x() + nx * half_w, self._p2.y() + ny * half_w
-        )
-        p2_bot = QtCore.QPointF(
-            self._p2.x() - nx * half_w, self._p2.y() - ny * half_w
-        )
+        p1_top = QtCore.QPointF(self._p1.x() + nx * half_w, self._p1.y() + ny * half_w)
+        p1_bot = QtCore.QPointF(self._p1.x() - nx * half_w, self._p1.y() - ny * half_w)
+        p2_top = QtCore.QPointF(self._p2.x() + nx * half_w, self._p2.y() + ny * half_w)
+        p2_bot = QtCore.QPointF(self._p2.x() - nx * half_w, self._p2.y() - ny * half_w)
 
         poly = QtGui.QPolygonF([p1_top, p2_top, p2_bot, p1_bot])
 
@@ -301,9 +288,7 @@ class OverlayWidget(QtWidgets.QWidget):
                     y1 = py - ny * (self._tick_length / 2.0)
                     x2 = px + nx * (self._tick_length / 2.0)
                     y2 = py + ny * (self._tick_length / 2.0)
-                    painter.drawLine(
-                        QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2)
-                    )
+                    painter.drawLine(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
             else:
                 # m == 1: draw single tick at the start endpoint
                 px = self._p1.x()
@@ -492,22 +477,17 @@ class ProfilePlot(QtWidgets.QWidget):
                 for i in range(m):
                     t = i / float(m - 1)
                     x = left + t * (w - 1.0)
-                    painter.drawLine(
-                        QtCore.QPointF(x, top), QtCore.QPointF(x, bottom)
-                    )
+                    painter.drawLine(QtCore.QPointF(x, top), QtCore.QPointF(x, bottom))
             else:
                 x = left  # single marker at start
-                painter.drawLine(
-                    QtCore.QPointF(x, top), QtCore.QPointF(x, bottom)
-                )
+                painter.drawLine(QtCore.QPointF(x, top), QtCore.QPointF(x, bottom))
 
         # Axes labels (minimal)
         painter.setPen(QtGui.QPen(QtGui.QColor(80, 80, 80)))
         text = f"Length: {N} px   min={p_min:.1f}  max={p_max:.1f}"
         painter.drawText(
             self.rect().adjusted(12, 12, -12, -12),
-            QtCore.Qt.AlignmentFlag.AlignTop
-            | QtCore.Qt.AlignmentFlag.AlignLeft,
+            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
             text,
         )
 
@@ -541,12 +521,8 @@ class ControlDialog(QtWidgets.QDialog):
 
         # Widgets
         self.suggest_combo = QtWidgets.QComboBox()
-        self.suggest_combo.setToolTip(
-            "Estimated counts from the signal analysis"
-        )
-        self.suggest_combo.currentIndexChanged.connect(
-            self._on_suggestion_index
-        )
+        self.suggest_combo.setToolTip("Estimated counts from the signal analysis")
+        self.suggest_combo.currentIndexChanged.connect(self._on_suggestion_index)
 
         self.manual_spin = QtWidgets.QSpinBox()
         self.manual_spin.setRange(1, 10000)
@@ -596,9 +572,7 @@ class ControlDialog(QtWidgets.QDialog):
         controls_form.addRow("Estimated numbers:", self.suggest_combo)
         controls_form.addRow("Manual number of items:", self.manual_spin)
         controls_form.addRow(self.analyze_btn)  # spans both columns
-        controls_form.addRow(
-            "Auto‑analyze:", self.auto_check
-        )  # aligned checkbox row
+        controls_form.addRow("Auto‑analyze:", self.auto_check)  # aligned checkbox row
         controls_form.addRow("Stripe width (px):", self.width_spin)
         controls_form.addRow("Line thickness:", self.thick_spin)
         controls_form.addRow("Tick length (px):", self.ticklen_spin)
@@ -752,9 +726,7 @@ class MainController(QtCore.QObject):
         # Wire signals
         self.ctrl.analyzeRequested.connect(self.analyze)
         self.ctrl.manualCountChanged.connect(self.overlay.set_tick_count)
-        self.ctrl.manualCountChanged.connect(
-            lambda n: self.ctrl.set_markers(int(n))
-        )
+        self.ctrl.manualCountChanged.connect(lambda n: self.ctrl.set_markers(int(n)))
         self.ctrl.stripeWidthChanged.connect(
             lambda v: self.overlay.set_stripe_width(
                 v, auto_analyze=self.cfg.params.auto_analyze
@@ -913,12 +885,8 @@ class MainController(QtCore.QObject):
 
     def _on_topmost_toggle(self, enabled: bool) -> None:
         self.cfg.ui.always_on_top = bool(enabled)
-        self.overlay.setWindowFlag(
-            QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled
-        )
-        self.ctrl.setWindowFlag(
-            QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled
-        )
+        self.overlay.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
+        self.ctrl.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
         self.overlay.show()
         self.ctrl.show()
         self._save_config()
@@ -955,9 +923,7 @@ class MainController(QtCore.QObject):
         self.overlay.setVisible(False)
         self.ctrl.setVisible(False)
         self.app.processEvents()
-        QtCore.QThread.msleep(
-            int(max(0, self.cfg.params.hide_during_capture_ms))
-        )
+        QtCore.QThread.msleep(int(max(0, self.cfg.params.hide_during_capture_ms)))
 
         # Grab desktop
         full_bgr = self._capture_virtual_desktop_bgr()
@@ -1015,9 +981,7 @@ class MainController(QtCore.QObject):
             profile, max_candidates=self.cfg.params.suggest_max
         )
         if not suggestions:
-            self.ctrl.set_status(
-                "No periodicity found. Adjust stripe width or line."
-            )
+            self.ctrl.set_status("No periodicity found. Adjust stripe width or line.")
             # Still show profile so user can see signal
             self.ctrl.set_profile(profile)
             self.ctrl.set_results_text("No strong periodicity found.")
@@ -1027,9 +991,7 @@ class MainController(QtCore.QObject):
         self.ctrl.set_profile(profile)
         lines = ["Candidates (items, confidence, source):"]
         for s in suggestions:
-            lines.append(
-                f"  • {s.count:>4}    {s.confidence:0.3f}    {s.source}"
-            )
+            lines.append(f"  • {s.count:>4}    {s.confidence:0.3f}    {s.source}")
         self.ctrl.set_results_text("\n".join(lines))
 
         self.ctrl.set_suggestions(suggestions)

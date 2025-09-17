@@ -47,9 +47,7 @@ def ensure_expected_scipy_version():
     with (ROOT / "pyproject.toml").open("rb") as fh:
         config = tomllib.load(fh)
     configured_version = (
-        config.get("tool", {})
-        .get("how-many", {})
-        .get("scipy-reference-version")
+        config.get("tool", {}).get("how-many", {}).get("scipy-reference-version")
     )
     if configured_version != EXPECTED_SCIPY_VERSION:
         pytest.fail(
@@ -102,9 +100,7 @@ def test_find_peaks_standalone(tmp_path):
             tmp_path,
             "peaks_standalone",
         )
-    assert (
-        result == pytest.ExitCode.OK
-    ), "Standalone find_peaks failed SciPy's tests!"
+    assert result == pytest.ExitCode.OK, "Standalone find_peaks failed SciPy's tests!"
 
 
 # --- Test Suite for detrend ---
@@ -119,9 +115,7 @@ def test_detrend_scipy_original(tmp_path):
         tmp_path,
         "detrend_original",
     )
-    assert (
-        result == pytest.ExitCode.OK
-    ), "Original SciPy detrend failed its own tests!"
+    assert result == pytest.ExitCode.OK, "Original SciPy detrend failed its own tests!"
 
 
 def test_detrend_standalone(tmp_path):
@@ -134,6 +128,4 @@ def test_detrend_standalone(tmp_path):
             tmp_path,
             "detrend_standalone",
         )
-    assert (
-        result == pytest.ExitCode.OK
-    ), "Standalone detrend failed SciPy's tests!"
+    assert result == pytest.ExitCode.OK, "Standalone detrend failed SciPy's tests!"

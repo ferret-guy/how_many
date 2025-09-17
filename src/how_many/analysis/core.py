@@ -71,9 +71,7 @@ def estimate_counts_from_profile(
 
         if peaks.size > 0:
             for k in peaks:
-                cycles = int(
-                    k
-                )  # DFT bin index ~ cycles across the sampled window
+                cycles = int(k)  # DFT bin index ~ cycles across the sampled window
                 conf = float(spectral[k] / spec_max)
                 add_items(cycles, conf, "fft-peak")
 

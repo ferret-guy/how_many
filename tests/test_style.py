@@ -8,12 +8,21 @@ import sys
 from typing import Iterable, Tuple
 
 import pytest
+import tomllib
 
 Command = Tuple[str, ...]
 StyleCheck = Tuple[str, Command]
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 PATHS: Tuple[str, ...] = ("src", "tests", "scripts")
+FLAKE8_OPTION_KEYS: Tuple[Tuple[str, str], ...] = (
+    ("max-line-length", "--max-line-length"),
+    ("max-complexity", "--max-complexity"),
+    ("select", "--select"),
+    ("ignore", "--ignore"),
+    ("per-file-ignores", "--per-file-ignores"),
+    ("exclude", "--exclude"),
+)
 
 
 def _python_module(module: str, *args: str) -> Command:
@@ -21,6 +30,29 @@ def _python_module(module: str, *args: str) -> Command:
 
 
 MYPY_TARGETS: Tuple[str, ...] = ("src/how_many/utils",)
+
+
+def _flake8_cli_args() -> Tuple[str, ...]:
+    config_path = REPO_ROOT / "pyproject.toml"
+    with config_path.open("rb") as config_file:
+        config = tomllib.load(config_file)
+
+    tool_section = config.get("tool", {})
+    flake8_section = tool_section.get("flake8", {})
+    args: list[str] = []
+    for key, option in FLAKE8_OPTION_KEYS:
+        value = flake8_section.get(key)
+        if value is None:
+            continue
+        if isinstance(value, list):
+            serialized = ",".join(str(item) for item in value)
+        else:
+            serialized = str(value)
+        args.append(f"{option}={serialized}")
+    return tuple(args)
+
+
+FLAKE8_ARGS = _flake8_cli_args()
 
 CHECKS: Tuple[StyleCheck, ...] = (
     (
@@ -33,7 +65,7 @@ CHECKS: Tuple[StyleCheck, ...] = (
     ),
     (
         "flake8",
-        _python_module("flake8", *PATHS),
+        _python_module("flake8", *FLAKE8_ARGS, *PATHS),
     ),
     (
         "mypy",

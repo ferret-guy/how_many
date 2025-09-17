@@ -19,7 +19,7 @@ test = [
     "hypothesis>=6.100",
     "tomli>=2.0.1",
     "black==24.10.0",
-    "flake8==6.1.0",
+    "flake8==7.1.1",
     "flake8-docstrings==1.7.0",
     "flake8-isort==6.1.2",
     "flake8-noqa==1.4.0",
@@ -35,7 +35,7 @@ dev = [
     "hypothesis>=6.100",
     "tomli>=2.0.1",
     "black==24.10.0",
-    "flake8==6.1.0",
+    "flake8==7.1.1",
     "flake8-docstrings==1.7.0",
     "flake8-isort==6.1.2",
     "flake8-noqa==1.4.0",
@@ -60,7 +60,7 @@ where = ["src"]
 scipy-reference-version = "1.15.3"
 
 [tool.black]
-line-length = 80
+line-length = 88
 target-version = ["py310"]
 
 [tool.isort]
@@ -90,20 +90,23 @@ implicit_reexport = true
 exclude = "venv|\\.venv|\\.tox|build|dist"
 
 [tool.flake8]
-max-line-length = 80
+max-line-length = 88
 max-complexity = 18
-select = "C,D,E,F,I,N,W,B,B950"
-ignore = "E203,E501,W503,W191,E126,E128"
-per-file-ignores = "./docs/conf.py:E101,./tests/*.py:N803,D102,D107"
-exclude = """
-    .eggs,
-    .git,
-    .mypy_cache,
-    .pytest_cache,
-    .tox,
-    __pycache__,
-    build,
-    dist,
-    venv,
-    .venv,
-"""
+select = ["C", "D", "E", "F", "I", "N", "W", "B", "B950"]
+ignore = ["E203", "E501", "W503", "W191", "E126", "E128", "E701"]
+per-file-ignores = [
+    "./docs/conf.py:E101",
+    "./tests/*.py:N803,D102,D107",
+]
+exclude = [
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".tox",
+    "__pycache__",
+    "build",
+    "dist",
+    "venv",
+    ".venv",
+]

@@ -190,9 +190,7 @@ def _arg_wlen_as_expected(value):
         value = -1
     elif 1 < value:
         value = (
-            np.intp(math.ceil(value))
-            if isinstance(value, float)
-            else np.intp(value)
+            np.intp(math.ceil(value)) if isinstance(value, float) else np.intp(value)
         )
     else:
         raise ValueError(f"`wlen` must be larger than 1, was {value}")
@@ -309,9 +307,7 @@ def find_peaks(
     # For the remaining peaks, calculate the more expensive properties
     if prominence is not None or width is not None:
         wlen = _arg_wlen_as_expected(wlen)
-        prominences, left_bases, right_bases = _peak_prominences(
-            x, peaks, wlen=wlen
-        )
+        prominences, left_bases, right_bases = _peak_prominences(x, peaks, wlen=wlen)
         properties.update(
             {
                 "prominences": prominences,
