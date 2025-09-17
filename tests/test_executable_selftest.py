@@ -66,9 +66,22 @@ def test_pyinstaller_executable_handles_analyze(tmp_path: Path) -> None:
 
     subprocess.run([sys.executable, str(build_script)], check=True, cwd=project_root)
 
-    exe_name = "how_many.exe" if sys.platform.startswith("win") else "how_many"
-    exe_path = project_root / "dist" / exe_name
-    assert exe_path.exists(), f"Expected executable at {exe_path}"
+    dist_dir = project_root / "dist"
+    if sys.platform.startswith("win"):
+        candidates = sorted(
+            (p for p in dist_dir.glob("how_many*.exe") if p.is_file()),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+    else:
+        candidates = sorted(
+            (p for p in dist_dir.glob("how_many*") if p.is_file()),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+    assert candidates, f"No built executable found in {dist_dir}"
+    exe_path = candidates[0]
 
     marker_path = tmp_path / "selftest-marker.txt"
 
