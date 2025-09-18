@@ -1,17 +1,14 @@
 """Qt application entry point for the how_many overlay tool."""
 
-from __future__ import annotations
-
+import math
 import os
-import traceback
 from pathlib import Path
+import sys
+import traceback
 from typing import Callable, List, Optional
 
-import math
-import sys
-
+from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 import numpy as np
-from PySide6 import QtCore, QtGui, QtWidgets, QtTest
 
 APP_VERSION: str
 
@@ -21,7 +18,6 @@ if __package__ in (None, ""):
         sys.path.insert(0, str(PACKAGE_ROOT))
 
     import how_many as _pkg
-
     from how_many.analysis import (
         estimate_counts_from_profile,
         stripe_profile_from_screenshot,
@@ -759,7 +755,9 @@ class MainController(QtCore.QObject):
         except OSError:
             pass
 
-    def _selftest_finish(self, *, success: bool, exit_code: int, detail: str = "") -> None:
+    def _selftest_finish(
+        self, *, success: bool, exit_code: int, detail: str = ""
+    ) -> None:
         if not self._selftest_active or self._selftest_exit_done:
             return
         self._selftest_exit_done = True

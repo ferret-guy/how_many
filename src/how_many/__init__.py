@@ -1,7 +1,5 @@
 """how_many package exposing a lazy ``main`` entry point."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from ._version import get_version

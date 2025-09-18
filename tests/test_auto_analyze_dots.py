@@ -1,16 +1,14 @@
 """Regression tests for auto-analysis using the screenshot helpers."""
 
-from __future__ import annotations
-
 import math
 from typing import Tuple
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
 import numpy as np
 import pytest
-from hypothesis import given, settings, strategies as st
 
 from how_many.analysis import estimate_counts_from_screenshot
-
 
 STRIPE_WIDTH_PX = 28
 SPACING_PX = 20.0
@@ -100,7 +98,9 @@ def test_estimate_counts_snap_angles(angle_deg: float) -> None:
     assert best.confidence > 0.75
 
 
-angles = st.floats(min_value=0.0, max_value=360.0, allow_nan=False, allow_infinity=False)
+angles = st.floats(
+    min_value=0.0, max_value=360.0, allow_nan=False, allow_infinity=False
+)
 dot_counts = st.integers(min_value=2, max_value=100)
 
 
@@ -109,7 +109,9 @@ dot_counts = st.integers(min_value=2, max_value=100)
 def test_estimate_counts_random_angle(angle_deg: float, num_dots: int) -> None:
     """Any angle between 0° and 360° should recover the dot count."""
 
-    screenshot, p1, p2 = _synthetic_dot_screenshot(num_dots=num_dots, angle_deg=angle_deg)
+    screenshot, p1, p2 = _synthetic_dot_screenshot(
+        num_dots=num_dots, angle_deg=angle_deg
+    )
     _, suggestions = estimate_counts_from_screenshot(
         screenshot,
         p1,
@@ -130,7 +132,9 @@ def test_estimate_counts_random_angle(angle_deg: float, num_dots: int) -> None:
 def test_estimate_counts_reverse_endpoints(angle_deg: float, num_dots: int) -> None:
     """Reversing the endpoints should not change the recovered dot count."""
 
-    screenshot, p1, p2 = _synthetic_dot_screenshot(num_dots=num_dots, angle_deg=angle_deg)
+    screenshot, p1, p2 = _synthetic_dot_screenshot(
+        num_dots=num_dots, angle_deg=angle_deg
+    )
 
     _, forward_suggestions = estimate_counts_from_screenshot(
         screenshot,

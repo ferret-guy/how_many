@@ -1,9 +1,7 @@
 """Qt helper utilities."""
 
-from __future__ import annotations
-
-import numpy as np
 from PySide6 import QtGui
+import numpy as np
 
 
 def qpixmap_to_bgr(pix: QtGui.QPixmap) -> np.ndarray:

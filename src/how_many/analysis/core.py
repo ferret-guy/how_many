@@ -1,14 +1,12 @@
 """Spectral and autocorrelation based counting helpers."""
 
-from __future__ import annotations
-
 from typing import Dict, List
 
 import numpy as np
 
 from ..models import Suggestion
 from ..utils import clamp
-from .peaks_detrend import find_peaks, detrend
+from .peaks_detrend import detrend, find_peaks
 
 
 def _rank_and_cap(

@@ -10,9 +10,10 @@ behavioural parity within the how_many project.
 """
 
 import math
-import warnings
-import numpy as np
 from typing import Literal
+import warnings
+
+import numpy as np
 
 SCIPY_REFERENCE_VERSION = "1.15.3"
 
