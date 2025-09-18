@@ -2,12 +2,13 @@
 
 import json
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
-from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from textwrap import dedent
+
 import setuptools_scm
 
 BASE_DIR = Path(__file__).resolve().parent.parent

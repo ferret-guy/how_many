@@ -10,9 +10,9 @@ behaviour.
 """
 
 import importlib.resources as resources
+from pathlib import Path
 import shutil
 import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -46,9 +46,7 @@ def ensure_expected_scipy_version():
     with (ROOT / "pyproject.toml").open("rb") as fh:
         config = tomllib.load(fh)
     configured_version = (
-        config.get("tool", {})
-        .get("how-many", {})
-        .get("scipy-reference-version")
+        config.get("tool", {}).get("how-many", {}).get("scipy-reference-version")
     )
     if configured_version != EXPECTED_SCIPY_VERSION:
         pytest.fail(

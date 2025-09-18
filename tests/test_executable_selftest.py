@@ -1,13 +1,11 @@
 """End-to-end test for the packaged how_many executable."""
 
-from __future__ import annotations
-
 import ctypes
 import ctypes.util
 import os
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 from typing import Iterable
 
 import pytest
